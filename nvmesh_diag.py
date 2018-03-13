@@ -358,28 +358,29 @@ def system_tuning_suse():
 
         print print_yellow("Tis seems to be a SuSE Linux server without Tuned installed and running. It's highly"
                            "recommended to install and configure Tuned for best performance results!")
-
-        if "y" in raw_input("Do you want to install and configure tuned now?[Yes/No]: ").lower():
-            print "Installing Tuned ...\t", run_cmd(CMD_INSTALL_TUNED_SLES)
-            print "Enabling the Tuned service...\t", run_cmd(CMD_ENABLE_TUNED)
-            print "Starting the Tuned service...\t", run_cmd(CMD_START_TUNED)
-            print "Setting and enabling the throughput-latency tuned policy...\t", run_cmd(CMD_SET_TUNED_PARAMETERS)
-            return
-        else:
-            print("No it is. Going on...")
-            return
+        if set_parameters is True:
+            if "y" in raw_input("Do you want to install and configure tuned now?[Yes/No]: ").lower():
+                print "Installing Tuned ...\t", run_cmd(CMD_INSTALL_TUNED_SLES)
+                print "Enabling the Tuned service...\t", run_cmd(CMD_ENABLE_TUNED)
+                print "Starting the Tuned service...\t", run_cmd(CMD_START_TUNED)
+                print "Setting and enabling the throughput-latency tuned policy...\t", run_cmd(CMD_SET_TUNED_PARAMETERS)
+                return
+            else:
+                print("No it is. Going on...")
+                return
 
     else:
         tuned_service_running = check_if_service_is_running("tuned")
 
         if tuned_service_running is False:
             print print_yellow("Tuned service is not running! Its hihgly recommended to run the Tuned service")
-            if "y" in raw_input("Do you want to start and enable the Tuned service now?[Yes/No] "):
-                print "Enabling the Tuned service...\t", run_cmd(CMD_ENABLE_TUNED)
-                print "Starting the Tuned service...\t", run_cmd(CMD_START_TUNED)
-            else:
-                print("No it is. Going on...")
-                return
+            if set_parameters is True:
+                if "y" in raw_input("Do you want to start and enable the Tuned service now?[Yes/No] "):
+                    print "Enabling the Tuned service...\t", run_cmd(CMD_ENABLE_TUNED)
+                    print "Starting the Tuned service...\t", run_cmd(CMD_START_TUNED)
+                else:
+                    print("No it is. Going on...")
+                    return
 
         tuned_adm_info = return_cmd_output(CMD_GET_TUNED_POLICY)
         output.write(tuned_adm_info + "\n")
@@ -404,12 +405,13 @@ def system_tuning_rhel():
 
     if tuned_service_running is False:
         print print_yellow("Tuned service is not running! Its hihgly recommended to run the Tuned service")
-        if "y" in raw_input("Do you want to start and enable the Tuned service now?[Yes/No] "):
-            print "Enabling the Tuned service...\t", run_cmd(CMD_ENABLE_TUNED)
-            print "Starting the Tuned service...\t", run_cmd(CMD_START_TUNED)
-        else:
-            print("No it is. Going on...")
-            return
+        if set_parameters is True:
+            if "y" in raw_input("Do you want to start and enable the Tuned service now?[Yes/No] "):
+                print "Enabling the Tuned service...\t", run_cmd(CMD_ENABLE_TUNED)
+                print "Starting the Tuned service...\t", run_cmd(CMD_START_TUNED)
+            else:
+                print("No it is. Going on...")
+                return
 
     tuned_adm_info = return_cmd_output(CMD_GET_TUNED_POLICY)
     output.write(tuned_adm_info + "\n")
@@ -546,15 +548,16 @@ def get_nvme_storage_info():
                     return
         else:
             print print_yellow("The nvme-cli tools seem missing!")
-            if "y" in raw_input("Do you want to install the nvme-cli?[Yes/No]: ").lower():
-                if "suse" in (platform.linux_distribution()[0]).lower():
-                    print "Installing nvme-cli ...\t", run_cmd(CMD_INSTALL_NVME_CLI_SLES)
+            if set_parameters is True:
+                if "y" in raw_input("Do you want to install the nvme-cli?[Yes/No]: ").lower():
+                    if "suse" in (platform.linux_distribution()[0]).lower():
+                        print "Installing nvme-cli ...\t", run_cmd(CMD_INSTALL_NVME_CLI_SLES)
+                    else:
+                        print "Installing nvme-cli ...\t", run_cmd(CMD_INSTALL_NVME_CLI_RHEL)
+                    return get_nvme_storage_info()
                 else:
-                    print "Installing nvme-cli ...\t", run_cmd(CMD_INSTALL_NVME_CLI_RHEL)
-                return get_nvme_storage_info()
-            else:
-                print("No it is. Going on...")
-                return
+                    print("No it is. Going on...")
+                    return
 
     print("Done.")
 # endregion
@@ -620,24 +623,26 @@ def get_ofed_information():
             if len(missing_inbox_drivers) != 0:
                 print print_red("OFED is not installed and Inbox drivers are missing! \n"
                                 "You must install either OFED or the missing Inbox drivers!\n")
-                if "y" in raw_input("Do you want to install the Mellanox inbox drivers now?[Yes/No]: "):
-                    for package in missing_inbox_drivers:
-                        print "Installing package %s ...\t" % package, run_cmd(CMD_INSTALL_SLES_PACKAGE % package)
-                    return
-                else:
-                    print("No it is. Going on...")
-                    return
+                if set_parameters is True:
+                    if "y" in raw_input("Do you want to install the Mellanox inbox drivers now?[Yes/No]: "):
+                        for package in missing_inbox_drivers:
+                            print "Installing package %s ...\t" % package, run_cmd(CMD_INSTALL_SLES_PACKAGE % package)
+                        return
+                    else:
+                        print("No it is. Going on...")
+                        return
         elif os_platform == "rhel":
             missing_inbox_drivers = check_for_inbox_driver_packages(RHEL_INBOX_DRIVERS)
             if len(missing_inbox_drivers) != 0:
                 print print_red("OFED is not installed and Inbox drivers are missing! \n"
                                 "You must install either OFED or the missing Inbox drivers!\n")
-                if "y" in raw_input("Do you want to install the Mellanox inbox drivers now?[Yes/No]: "):
-                    for package in missing_inbox_drivers:
-                        print "Installing package %s ...\t" % package, run_cmd(CMD_INSTALL_RHEL_PACKAGE)
-                else:
-                    print("No it is. Going on...")
-                    return
+                if set_parameters is True:
+                    if "y" in raw_input("Do you want to install the Mellanox inbox drivers now?[Yes/No]: "):
+                        for package in missing_inbox_drivers:
+                            print "Installing package %s ...\t" % package, run_cmd(CMD_INSTALL_RHEL_PACKAGE)
+                    else:
+                        print("No it is. Going on...")
+                        return
     else:
         print print_green("OFED installed - OK "), "\nVersion: " + ofed_version + "Please verify this information " \
                                                                                   "with the latest support matrix!"
