@@ -369,7 +369,17 @@ def system_tuning_suse():
             print("No it is. Going on...")
             return
 
-    elif get_cmd_output(CMD_CHECK_FOR_TUNED_ADM)[0] == 0:
+    else:
+        tuned_service_running = check_if_service_is_running("tuned")
+
+        if tuned_service_running is False:
+            print print_yellow("Tuned service is not running! Its hihgly recommended to run the Tuned service")
+            if "y" in raw_input("Do you want to start and enable the Tuned service now?[Yes/No] "):
+                print "Enabling the Tuned service...\t", run_cmd(CMD_ENABLE_TUNED)
+                print "Starting the Tuned service...\t", run_cmd(CMD_START_TUNED)
+            else:
+                print("No it is. Going on...")
+                return
 
         tuned_adm_info = return_cmd_output(CMD_GET_TUNED_POLICY)
         output.write(tuned_adm_info + "\n")
@@ -393,27 +403,30 @@ def system_tuning_rhel():
     tuned_service_running = check_if_service_is_running("tuned")
 
     if tuned_service_running is False:
-        print print_yellow("Tuned service is not running! Its hihly recommended to run the Tuned service")
+        print print_yellow("Tuned service is not running! Its hihgly recommended to run the Tuned service")
         if "y" in raw_input("Do you want to start and enable the Tuned service now?[Yes/No] "):
             print "Enabling the Tuned service...\t", run_cmd(CMD_ENABLE_TUNED)
             print "Starting the Tuned service...\t", run_cmd(CMD_START_TUNED)
-
-        tuned_adm_info = return_cmd_output(CMD_GET_TUNED_POLICY)
-        output.write(tuned_adm_info + "\n")
-
-        if "latency-performance" in tuned_adm_info:
-            print(print_green("Tuned profile settings are OK"))
         else:
-            print(print_yellow(
-                "Tuned settings is not as recommended! Please run 'tuned-adm profile latency-performance' to set and "
-                "enable the recommended Tuned profile and verify the Tuned service is running."))
-            if set_parameters is True:
-                if "y" in raw_input("Do you want to set the recommended tuned parameters now?[Yes/No]: ").lower():
-                    print "Setting and enabling the throughput-latency tuned policy...\t", run_cmd(CMD_SET_TUNED_PARAMETERS)
-                    return
-                else:
-                    print("No it is. Going on...")
-                    return
+            print("No it is. Going on...")
+            return
+
+    tuned_adm_info = return_cmd_output(CMD_GET_TUNED_POLICY)
+    output.write(tuned_adm_info + "\n")
+
+    if "latency-performance" in tuned_adm_info:
+        print(print_green("Tuned profile settings are OK"))
+    else:
+        print(print_yellow(
+            "Tuned settings is not as recommended! Please run 'tuned-adm profile latency-performance' to set and "
+            "enable the recommended Tuned profile and verify the Tuned service is running."))
+        if set_parameters is True:
+            if "y" in raw_input("Do you want to set the recommended tuned parameters now?[Yes/No]: ").lower():
+                print "Setting and enabling the throughput-latency tuned policy...\t", run_cmd(CMD_SET_TUNED_PARAMETERS)
+                return
+            else:
+                print("No it is. Going on...")
+                return
     return
 
 
