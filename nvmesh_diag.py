@@ -183,7 +183,7 @@ def get_and_verify_selinux():
             print print_red("SELinux active. Should be disabled!")
             if set_parameters is True:
                 if "y" in raw_input("Do you want to Disable SELinux now?[Yes/No]: ").lower():
-                    print "Disabeling SELinux...\t", (run_cmd(CMD_SET_SELINUX))
+                    print "Disabeling SELinux...\t", (run_cmd(CMD_DISABLE_SELINUX))
                 else:
                     print("No it is. Going on...")
             if verbose_mode is True:
@@ -200,7 +200,7 @@ def get_and_verify_selinux():
             else:
                 if set_parameters is True:
                     if "y" in raw_input("Do you want to Disable SELinux now?[Yes/No]: ").lower():
-                        print(run_cmd(CMD_SET_SELINUX))
+                        print(run_cmd(CMD_DISABLE_SELINUX))
                     else:
                         print("No it is. Going on...")
         else:
@@ -505,19 +505,17 @@ def get_nvme_storage_info():
     if nvmesh_services is not None:
         print("Found that NVMesh software components are installed already. Checking the NVMesh services now...")
         for service in nvmesh_services:
-            nvmesh_service_details = get_nvmesh_service_details(service.split(" ")[0])
+            nvmesh_service_details = get_nvmesh_service_details(service.split(" ")[0]).strip()
             if "ok" in service.lower():
                 print print_green(service)
-                output.writelines(nvmesh_service_details)
+                output.writelines(str(nvmesh_service_details))
                 if verbose_mode is True:
                     print nvmesh_service_details
-                return
             else:
                 print print_yellow(service)
-                output.write(str(nvmesh_service_details))
+                output.writelines(str(nvmesh_service_details))
                 if verbose_mode is True:
-                    print str(nvmesh_service_details)
-                return
+                    print nvmesh_service_details
     else:
         if get_cmd_output(CMD_CHECK_FOR_NVME_CLI)[0] == 0:
             nvme_list_output = return_cmd_output(CMD_GET_NVME_SSD).splitlines()
@@ -529,25 +527,22 @@ def get_nvme_storage_info():
                         for line in nvme_list_output:
                             print(line)
                 else:
-                        print print_yellow("No NVMe SSD found on this server! This server can only be configured as a NVMesh "
+                    print print_yellow("No NVMe SSD found on this server! This server can only be configured as a NVMesh "
                                            "Client.")
-                        return
             else:
                 nvme_numa_output = return_cmd_output(CMD_GET_NVME_SDD_NUMA)
-                if verbose_mode is True:
-                    for line in nvme_list_output:
-                        print(line)
-                    print("\n" + nvme_numa_output)
-                    output.write("\n" + nvme_numa_output + "\n")
-                    for line in nvme_list_output:
-                        output.write(line + "\n")
-                else:
-                    print print_yellow(
-                        "No NVMe SSD found on this server! This server can only be configured as a NVMesh "
-                        "Client.")
-                    return
+                if len(nvme_numa_output) > 0:
+                    if verbose_mode is True:
+                        for line in nvme_list_output:
+                            print(line)
+                        print("\n" + nvme_numa_output)
+                        output.write("\n" + nvme_numa_output + "\n")
+                        for line in nvme_list_output:
+                            output.write(line + "\n")
+            print("Done.")
+            return
         else:
-            print print_yellow("The nvme-cli tools seem missing!")
+            print print_yellow("The nvme-cli tools seem to be missing!")
             if set_parameters is True:
                 if "y" in raw_input("Do you want to install the nvme-cli?[Yes/No]: ").lower():
                     if "suse" in (platform.linux_distribution()[0]).lower():
