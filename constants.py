@@ -1,9 +1,38 @@
+#Copyright (c) 2018 Excelero, Inc. All rights reserved.
+#
+# This Software is licensed under one of the following licenses:
+#
+# 1) under the terms of the "Common Public License 1.0" a copy of which is
+#    available from the Open Source Initiative, see
+#    http://www.opensource.org/licenses/cpl.php.
+#
+# 2) under the terms of the "The BSD License" a copy of which is
+#    available from the Open Source Initiative, see
+#    http://www.opensource.org/licenses/bsd-license.php.
+#
+# 3) under the terms of the "GNU General Public License (GPL) Version 2" a
+#    copy of which is available from the Open Source Initiative, see
+#    http://www.opensource.org/licenses/gpl-license.php.
+#
+# Licensee has the right to choose one of the above licenses.
+#
+# Redistributions of source code must retain the above copyright
+# notice and one of the license notices.
+#
+# Redistributions in binary form must reproduce both the above copyright
+# notice, one of the license notices in the documentation
+# and/or other materials provided with the distribution.
+#
+# Author:        Andreas Krause
+# Version:       in development
+# Maintainer:    Andreas Krause
+# Email:         andreas@excelero.com
+
 REGEX_HCAID = r"(mlx5_\d*)"
 REGEX_INSTALLED_MEMORY = r"\S*Mem:\s*(\d*[A-Za-z])"
 REGEX_HCA_MAX = r"LnkCap:\s\S*\s\S*\s\S*\s([A-Za-z0-9]*/s),\s\S*\s(\S[0-9]*)"
 REGEX_HCA_ACTUAL = r"LnkSta:\s\S*\S*\s([A-Za-z0-9]*/s),\s\S*\s(\S[0-9]*)"
 REGEX_HCA_LIST = "(mlx5_\\d*)\\s*node_guid:\\s*([A-Za-z0-9]*):([A-Za-z0-9]*):([A-Za-z0-9]*):([A-Za-z0-9]*)"
-
 EXCELERO_MANAGEMENT_PORTS = [("tcp", 4000), ("tcp", 4001)]
 ROCEV2_TARGET_PORT = ("udp", 4791)
 MONGODB_PORT = ("tcp", 27017)
@@ -32,35 +61,25 @@ CMD_GET_FIREWALLD_STATUS = "systemctl status firewalld | grep Active"
 CMD_GET_FIREWALL_CONFIG = "iptables -nL"
 CMD_STOP_SUSE_FIREWALL = "systemctl stop SuSEfirewall2"
 CMD_DISABLE_SUSE_FIREWALL = "systemctl disable SuSEfirewall2"
-
-
-# region Hardware Vendor and System Information Related
 CMD_CHECK_FOR_DMIDECODE = "which dmidecode"
 CMD_GET_SYSTEM_INFORMATION = "dmidecode | grep -A 4 'System Information'"
 CMD_GET_BASE_BOARD_INFORMATION = "dmidecode | grep -A 5 'Base Board Information'"
-# endregion
-
-# region SELinux and AppArmor related
 CMD_CHECK_FOR_SESTATUS = "which sestatus"
 CMD_CHECK_FOR_GETENFORCE = "which getenforce"
 CMD_SELINUX_GETENFORCE = "getenforce"
 CMD_GET_SETSTATUS = "sestatus"
-CMD_SET_SELINUX = "sed -i 's/^SELINUX=enforcing/SELINUX=disabled/' /etc/selinux/config"
+CMD_DISABLE_SELINUX = "sed -i 's/^SELINUX=enforcing/SELINUX=disabled/' /etc/selinux/config"
 CMD_GET_APPARMOR_STATUS = "systemctl status apparmor"
 CMD_DISABLE_APPARMOR = "systemctl disable apparmor"
 CMD_STOP_APPARMOR = "systemctl stop apparmor"
 CMD_GET_APPARMOR_DETAILS = "apparmor_status"
-# endregion
-
 CMD_CHECK_FOR_TUNED_ADM = "which tuned-adm"
 CMD_INSTALL_TUNED_SLES = "zypper install -y tuned"
-
 CMD_CHECK_FOR_NVME_CLI = "which nvme"
 CMD_GET_NVME_SSD = "nvme list"
 CMD_GET_NVME_SDD_NUMA = "lspci -vv | grep -A 10 Volatile | grep -e Volatile -e NUMA"
 CMD_INSTALL_NVME_CLI_SLES = "zypper install -y nvme-cli"
 CMD_INSTALL_NVME_CLI_RHEL = "yum install -y nvme-cli"
-
 CMD_GET_RNIC_INFO = "for i in `lspci | awk '/Mellanox/ {print $1}'`;do echo $i; echo \"FW level:\" | tr '\n' ' '; cat " \
                     "/sys/bus/pci/devices/0000:$i/infiniband/mlx*_*/fw_ver; lspci -s $i -vvv | egrep -e Connect-X -e " \
                     "\"Product Name:\" -e Subsystem -e NUMA -e \"LnkSta:\" -e \"LnkCap\" -e \"MaxPayload\"; echo """ \
