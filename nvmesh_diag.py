@@ -26,7 +26,7 @@
 # and/or other materials provided with the distribution.
 #
 # Author:        Andreas Krause
-# Build:         1
+# Build:         2
 # Maintainer:    Andreas Krause
 # Email:         andreas@excelero.com
 
@@ -242,8 +242,10 @@ def get_os_platform():
         return "rhel"
     elif "centos" in linux_distributuion:
         return "rhel"
+    elif "oracle" in linux_distributuion:
+        return "rhel"
     else:
-        print print_red("Unsupported Linux distribution!"), "RHEL/CentOS 7.3, 7.4 and SLES 12 SP3 are the only " \
+        print print_red("Unsupported Linux distribution!"), "RHEL/CentOS 7.3, 7.4; Oracle Linux 7.4, 7.5 and SLES 12 SP3 are the only " \
                                                             "Linux distributions supported in this version."
         exit(1)
 
