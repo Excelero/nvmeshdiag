@@ -112,6 +112,7 @@ CMD_ENABLE_TUNED = "systemctl enable tuned"
 CMD_INSTALL_SLES_PACKAGE = "zypper install -y %s"
 CMD_INSTALL_RHEL_PACKAGE = "yum install -y %s"
 CMD_GET_TOMA_LEADER = "cat /var/log/NVMesh/toma_leader_name"
+CMD_INSTALL_TUNED_RHEL = "yum install -y tuned"
 
 
 parser = argparse.ArgumentParser()
@@ -441,7 +442,7 @@ def get_and_verify_cpu():
 def system_tuning_suse():
     if get_cmd_output(CMD_CHECK_FOR_TUNED_ADM)[0] != 0:
 
-        print print_yellow("Tis seems to be a SuSE Linux server without Tuned installed and running. It's highly"
+        print print_yellow("Tis seems to be a server without Tuned installed and running. It's highly"
                            "recommended to install and configure Tuned for best performance results!")
         if set_parameters is True:
             if "y" in raw_input("Do you want to install and configure tuned now?[Yes/No]: ").lower():
@@ -486,6 +487,21 @@ def system_tuning_suse():
 
 
 def system_tuning_rhel():
+    if get_cmd_output(CMD_CHECK_FOR_TUNED_ADM)[0] != 0:
+
+        print print_yellow("Tis seems to be a server without Tuned installed and running. It's highly"
+                           "recommended to install and configure Tuned for best performance results!")
+        if set_parameters is True:
+            if "y" in raw_input("Do you want to install and configure tuned now?[Yes/No]: ").lower():
+                print "Installing Tuned ...\t", run_cmd(CMD_INSTALL_TUNED_RHEL)
+                print "Enabling the Tuned service...\t", run_cmd(CMD_ENABLE_TUNED)
+                print "Starting the Tuned service...\t", run_cmd(CMD_START_TUNED)
+                print "Setting and enabling the throughput-latency tuned policy...\t", run_cmd(CMD_SET_TUNED_PARAMETERS)
+                return
+            else:
+                print("No it is. Going on...")
+                return
+
     tuned_service_running = check_if_service_is_running("tuned")
 
     if tuned_service_running is False:
@@ -694,6 +710,9 @@ def get_ofed_information():
     ofed_version = get_command_return_code(CMD_GET_OFED_INFO)
     output.write("OFED: " + ofed_version + "\n")
     if "not found or not installed" in ofed_version:
+        if "oracle" in platform.linux_distribution()[0].lower():
+            print print_red("OFED not installed! You need to install OFED before getting started with NVMesh.")
+            return
         print "OFED not installed! Checking for inbox drivers now."
         if os_platform == "sles":
             missing_inbox_drivers = check_for_inbox_driver_packages(SLES_INBOX_DRIVERS)
@@ -716,7 +735,7 @@ def get_ofed_information():
                 if set_parameters is True:
                     if "y" in raw_input("Do you want to install the Mellanox inbox drivers now?[Yes/No]: "):
                         for package in missing_inbox_drivers:
-                            print "Installing package %s ...\t" % package, run_cmd(CMD_INSTALL_RHEL_PACKAGE)
+                            print "Installing package %s ...\t" % package, run_cmd(CMD_INSTALL_RHEL_PACKAGE % package)
                     else:
                         print("No it is. Going on...")
                         return
