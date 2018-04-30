@@ -1,4 +1,4 @@
-#!/usr/bin/python
+#!/usr/bin/env python
 #
 # Copyright (c) 2018 Excelero, Inc. All rights reserved.
 #
@@ -26,7 +26,7 @@
 # and/or other materials provided with the distribution.
 #
 # Author:        Andreas Krause
-# Version:       in development
+# Build:         1
 # Maintainer:    Andreas Krause
 # Email:         andreas@excelero.com
 
@@ -37,10 +37,103 @@ import logging
 import platform
 import datetime
 import re
-from constants import *
 
 
-# region command execution
+REGEX_HCAID = r"(mlx5_\d*)"
+REGEX_INSTALLED_MEMORY = r"\S*Mem:\s*(\d*[A-Za-z])"
+REGEX_HCA_MAX = r"LnkCap:\s\S*\s\S*\s\S*\s([A-Za-z0-9]*/s),\s\S*\s(\S[0-9]*)"
+REGEX_HCA_ACTUAL = r"LnkSta:\s\S*\S*\s([A-Za-z0-9]*/s),\s\S*\s(\S[0-9]*)"
+REGEX_HCA_LIST = "(mlx5_\\d*)\\s*node_guid:\\s*([A-Za-z0-9]*):([A-Za-z0-9]*):([A-Za-z0-9]*):([A-Za-z0-9]*)"
+EXCELERO_MANAGEMENT_PORTS = [("tcp", 4000), ("tcp", 4001)]
+ROCEV2_TARGET_PORT = ("udp", 4791)
+MONGODB_PORT = ("tcp", 27017)
+RHEL_INBOX_DRIVERS = ["libibverbs", "librdmacm", "libibcm", "libibmad", "libibumad", "libmlx4", "libmlx5", "opensm",
+                          "ibutils", "infiniband-diags", "perftest", "mstflint", "rdmacmutils", "ibverbs-utils",
+                          "librdmacm-utils", "libibverbs-utils"]
+SLES_INBOX_DRIVERS = ["rdma-core", "librdmacm1", "libibmad5", "libibumad3"]
+CMD_GET_TUNED_POLICY = "tuned-adm active"
+CMD_SET_TUNED_PARAMETERS = "tuned-adm profile latency-performance"
+CMD_SET_ONE_QP = "mlxconfig -d %s -b ./Excelero_mlxconfig.db set ONE_QP_PER_RECOVERY=1"
+CMD_GET_ONE_QP = "mlxconfig -d %s -b ./Excelero_mlxconfig.db query ONE_QP_PER_RECOVERY | grep ONE_QP_PER_RECOVERY"
+CMD_DISABLE_FIREWALL = ["systemctl stop firewalld", "systemctl disable firewalld"]
+CMD_SET_FIREWALL_FOR_NVMESH_MGMT = ["firewall-cmd --permanent --direct --add-rule ipv4 filter INPUT 0 -p tcp --dport "
+                                    "4000 -j ACCEPT -m comment --comment Excelero-Management", "firewall-cmd "
+                                    "--permanent --direct --add-rule ipv4 filter INPUT 0 -p tcp --dport 4001 -j "
+                                    "ACCEPT -m comment --comment Excelero-Management"]
+CMD_SET_FIREWALL_FOR_ROCEV2 = "firewall-cmd --permanent --direct --add-rule ipv4 filter INPUT 0 -p udp --dport " \
+                              "4791 -j ACCEPT -m comment --comment RoCEv2-Target"
+CMD_SET_FIREWALL_FOR_MOGODB = "firewall-cmd --permanent --direct --add-rule ipv4 filter INPUT 0 -p tcp --dport 27017 " \
+                              "-j ACCEPT -m comment --comment MongoDB"
+CMD_RELOAD_FIREWALL_RULES = "firewall-cmd --reload"
+CMD_GET_IRQ_BALANCER_STATUS = "systemctl status irqbalance"
+CMD_START_IRQ_BALANCER = "systemctl start irqbalance"
+CMD_ENABALE_IRQ_BALANCER = "systemctl enable irqbalance"
+CMD_GET_FIREWALLD_STATUS = "systemctl status firewalld | grep Active"
+CMD_GET_FIREWALL_CONFIG = "iptables -nL"
+CMD_STOP_SUSE_FIREWALL = "systemctl stop SuSEfirewall2"
+CMD_DISABLE_SUSE_FIREWALL = "systemctl disable SuSEfirewall2"
+CMD_CHECK_FOR_DMIDECODE = "which dmidecode"
+CMD_GET_SYSTEM_INFORMATION = "dmidecode | grep -A 4 'System Information'"
+CMD_GET_BASE_BOARD_INFORMATION = "dmidecode | grep -A 5 'Base Board Information'"
+CMD_CHECK_FOR_SESTATUS = "which sestatus"
+CMD_CHECK_FOR_GETENFORCE = "which getenforce"
+CMD_SELINUX_GETENFORCE = "getenforce"
+CMD_GET_SETSTATUS = "sestatus"
+CMD_DISABLE_SELINUX = "sed -i 's/^SELINUX=enforcing/SELINUX=disabled/' /etc/selinux/config"
+CMD_GET_APPARMOR_STATUS = "systemctl status apparmor"
+CMD_DISABLE_APPARMOR = "systemctl disable apparmor"
+CMD_STOP_APPARMOR = "systemctl stop apparmor"
+CMD_GET_APPARMOR_DETAILS = "apparmor_status"
+CMD_CHECK_FOR_TUNED_ADM = "which tuned-adm"
+CMD_INSTALL_TUNED_SLES = "zypper install -y tuned"
+CMD_CHECK_FOR_NVME_CLI = "which nvme"
+CMD_GET_NVME_SSD = "nvme list"
+CMD_GET_NVME_SDD_NUMA = "lspci -vv | grep -A 10 Volatile | grep -e Volatile -e NUMA"
+CMD_INSTALL_NVME_CLI_SLES = "zypper install -y nvme-cli"
+CMD_INSTALL_NVME_CLI_RHEL = "yum install -y nvme-cli"
+CMD_GET_RNIC_INFO = "for i in `lspci | awk '/Mellanox/ {print $1}'`;do echo $i; echo \"FW level:\" | tr '\n' ' '; cat " \
+                    "/sys/bus/pci/devices/0000:$i/infiniband/mlx*_*/fw_ver; lspci -s $i -vvv | egrep -e Connect-X -e " \
+                    "\"Product Name:\" -e Subsystem -e NUMA -e \"LnkSta:\" -e \"LnkCap\" -e \"MaxPayload\"; echo """ \
+                    "; done"
+CMD_GET_OFED_INFO = "ofed_info -n"
+CMD_CHECK_RPM = "rpm -q %s"
+CMD_GET_IBV_DEVINFO = "ibv_devinfo | grep -e hca_id -e guid"
+CMD_GET_IBDEV2NETDEV = "ibdev2netdev -v"
+CMD_GET_IBHOSTS = "ibhosts"
+CMD_GET_IBSWITCHES = "ibswitches"
+CMD_GET_IP_INFO = "ip -4 a s"
+CMD_GET_NVMESH_SERVICES = "service --status-all | grep nvmesh"
+CMD_GET_NVMESH_SERVICE_DETAILS = "service %s status"
+CMD_STOP_NVMESH_SERVICES = "service %s stop"
+CMD_CHECK_IF_SERVICE_IS_RUNNING = "systemctl status %s"
+CMD_START_TUNED = "systemctl start tuned"
+CMD_ENABLE_TUNED = "systemctl enable tuned"
+CMD_INSTALL_SLES_PACKAGE = "zypper install -y %s"
+CMD_INSTALL_RHEL_PACKAGE = "yum install -y %s"
+CMD_GET_TOMA_LEADER = "cat /var/log/NVMesh/toma_leader_name"
+
+
+parser = argparse.ArgumentParser()
+parser.add_argument('-v', '--verbose', type=bool, nargs='?', const=True, default=False,
+                    help="Activate verbose output mode.")
+parser.add_argument('-s', '--set-parameters', type=bool, nargs='?', const=True, default=False,
+                    help="Set the recommended parameters where possible.")
+args = parser.parse_args()
+verbose_mode = getattr(args, "verbose")
+set_parameters = getattr(args, "set_parameters")
+host_name = platform.node()
+output = open(host_name + '_' + str(datetime.datetime.utcnow()).replace(" ", "_") + '_nvmesh_diag_output.txt', 'w')
+
+logging.basicConfig(filename='nvmesh_diag.log', format='%(asctime)s\t%(levelname)s\t%(message)s',
+                    datefmt='%m/%d/%Y %I:%M:%S %p', level=logging.DEBUG)
+logging.debug(
+    "Execution Started -------------------------------------------------------------------------------------")
+logging.debug("Verbose output enabled: " + unicode(verbose_mode))
+logging.debug("Setting recommended parameters: " + unicode(set_parameters))
+logging.debug("Storing output to: " + output.name)
+os_platform = None
+
+
 def get_cmd_output(cmd_to_execute):
     with TemporaryFile() as t:
         try:
@@ -54,7 +147,7 @@ def get_cmd_output(cmd_to_execute):
             return e.returncode, cmd_to_execute, t.read()
 
 
-def return_cmd_output(cmd):
+def get_command_return_code(cmd):
     cmd_output = get_cmd_output(cmd)
     if cmd_output[0] == 0:
         return cmd_output[1]
@@ -92,10 +185,8 @@ def check_if_service_is_running(service):
         return False
     else:
         return None
-# endregion
 
 
-# region output formatting
 def print_and_log_info(text):
     logging.info(strip_tabs((text.lstrip("\n")).rstrip(":")))
     print('\033[1m' + '\033[4m' + text + '\033[0m')
@@ -123,34 +214,28 @@ def print_red(text):
     logging.error(text + "\n")
     output.write(text)
     return '\033[31m' + text + '\033[0m'
-# endregion
 
 
-# region Collecting Host Name Information
 def get_hostname():
     output.write(host_name + "\n\n")
     if verbose_mode is True:
         print(host_name)
     print("Done.")
-# endregion
 
 
-# region Collecting Hardware Vendor and System Information
 def get_hardware_information():
     if get_cmd_output(CMD_CHECK_FOR_DMIDECODE)[0] == 0:
-        system_information = return_cmd_output(CMD_GET_SYSTEM_INFORMATION).split("\n")
+        system_information = get_command_return_code(CMD_GET_SYSTEM_INFORMATION).split("\n")
         output.write(str(system_information[1].strip() + "\n" + system_information[2].strip() + "\n\n"))
         if verbose_mode is True:
             print system_information[1].strip(), system_information[2]
     else:
         print print_yellow("Couldn't collect hardware information!")
     print("Done.")
-# endregion
 
 
 def get_os_platform():
     linux_distributuion = platform.linux_distribution()[0].lower()
-
     if "suse" in linux_distributuion:
         return "sles"
     elif "red" in linux_distributuion:
@@ -158,10 +243,11 @@ def get_os_platform():
     elif "centos" in linux_distributuion:
         return "rhel"
     else:
-        return None
+        print print_red("Unsupported Linux distribution!"), "RHEL/CentOS 7.3, 7.4 and SLES 12 SP3 are the only " \
+                                                            "Linux distributions supported in this version."
+        exit(1)
 
 
-# region Collecting Operating System Information
 def get_os_information():
     os_details = platform.linux_distribution()[0:2]
     kernel_version = str(platform.release())
@@ -169,13 +255,11 @@ def get_os_information():
     print os_details[0], os_details[
         1], kernel_version, "\nPlease verify this information with the latest support matrix!"
     print("Done.")
-# endregion
 
 
-# region Collecting and Verifying SELinux Information
 def get_and_verify_selinux():
     if get_cmd_output(CMD_CHECK_FOR_SESTATUS)[0] == 0:
-        selinux_status = return_cmd_output(CMD_GET_SETSTATUS).splitlines()
+        selinux_status = get_command_return_code(CMD_GET_SETSTATUS).splitlines()
         for line in selinux_status:
             output.write(line + "\n")
         output.write("\n")
@@ -195,7 +279,7 @@ def get_and_verify_selinux():
     else:
         print print_yellow("Couldn't find the SElinux policy tools, will try with 'getenforce' now.")
         if get_cmd_output(CMD_CHECK_FOR_GETENFORCE)[0] == 0:
-            if "disabled" in return_cmd_output(CMD_SELINUX_GETENFORCE).lower():
+            if "disabled" in get_command_return_code(CMD_SELINUX_GETENFORCE).lower():
                 print print_green("Disabled - OK")
             else:
                 if set_parameters is True:
@@ -208,7 +292,7 @@ def get_and_verify_selinux():
                 print print_yellow("Couldn't find any SElinux tools or config and the OS is SuSE, will check the"
                                    "AppArmor settings now!")
                 if check_if_service_is_running("apparmor") is True:
-                    apparmor_output = return_cmd_output(CMD_GET_APPARMOR_DETAILS)
+                    apparmor_output = get_command_return_code(CMD_GET_APPARMOR_DETAILS)
                     output.write(apparmor_output + "\n")
                     print(print_yellow("AppArmor active!"))
                     if verbose_mode is True:
@@ -222,10 +306,8 @@ def get_and_verify_selinux():
                             print("No it is. Going on...")
                 else:
                     print print_green("AppArmor not runnning - OK")
-# endregion
 
 
-# region Collecting and Verifying Firewall Information
 def get_and_verify_firewall_suse():
     firewall_running = check_if_service_is_running("SuSEfirewall2")
 
@@ -253,7 +335,7 @@ def get_and_verify_firewall_rhel():
     firewall_running = check_if_service_is_running("firewalld")
 
     if firewall_running is True:
-        iptables_output = return_cmd_output(CMD_GET_FIREWALL_CONFIG)
+        iptables_output = get_command_return_code(CMD_GET_FIREWALL_CONFIG)
         output.write(iptables_output + "\n")
         print(print_yellow("Firewall active!"))
 
@@ -320,12 +402,10 @@ def get_and_verify_firewall():
     elif os_platform == "sles":
         get_and_verify_firewall_suse()
         return
-# endregion
 
 
-# region Collecting and Verifying CPU Information
 def get_and_verify_cpu():
-    cpu_info = return_cmd_output("lscpu").split("\n")
+    cpu_info = get_command_return_code("lscpu").split("\n")
     for line in cpu_info:
         output.write(line + "\n")
     output.write("\n")
@@ -339,7 +419,7 @@ def get_and_verify_cpu():
         if "CPU MHz" in line:
             actual_cpu_frequency = float((line.split(":")[1]).strip())
             max_frequency_info = re.compile("\d+")
-            for frequency in return_cmd_output("dmidecode -s processor-frequency").split("\n"):
+            for frequency in get_command_return_code("dmidecode -s processor-frequency").split("\n"):
                 match = max_frequency_info.search(frequency)
                 if match:
                     max_cpu_frequency = float(match.group(0))
@@ -350,7 +430,6 @@ def get_and_verify_cpu():
                 "Check BIOS settings and verify System Tuning settings as below.\n")
         else:
             print print_green("CPU frequency settings OK.\n")
-# endregion
 
 
 def system_tuning_suse():
@@ -382,7 +461,7 @@ def system_tuning_suse():
                     print("No it is. Going on...")
                     return
 
-        tuned_adm_info = return_cmd_output(CMD_GET_TUNED_POLICY)
+        tuned_adm_info = get_command_return_code(CMD_GET_TUNED_POLICY)
         output.write(tuned_adm_info + "\n")
 
         if "latency-performance" in tuned_adm_info:
@@ -413,7 +492,7 @@ def system_tuning_rhel():
                 print("No it is. Going on...")
                 return
 
-    tuned_adm_info = return_cmd_output(CMD_GET_TUNED_POLICY)
+    tuned_adm_info = get_command_return_code(CMD_GET_TUNED_POLICY)
     output.write(tuned_adm_info + "\n")
 
     if "latency-performance" in tuned_adm_info:
@@ -432,7 +511,6 @@ def system_tuning_rhel():
     return
 
 
-# region Collecting and Verifying System Tuning Information
 def get_and_verify_system_tuning():
 
     if os_platform == "sles":
@@ -457,33 +535,28 @@ def get_and_verify_system_tuning():
                 print("No it is. Going on...")
 
     return
-# endregion
 
 
-# region Collecting Memory Information
 def get_memory_information():
-    memory_info = return_cmd_output("free -h")
+    memory_info = get_command_return_code("free -h")
     output.write(memory_info + "\n")
     installed_memory = re.findall(REGEX_INSTALLED_MEMORY, memory_info)[0]
     if verbose_mode is True:
         print(installed_memory + " installed memory.\n")
     print("Done.")
-# endregion
 
 
-# region Collecting High Level Block Device Information
 def get_block_device_information():
-    lsblk_output = return_cmd_output("lsblk")
+    lsblk_output = get_command_return_code("lsblk")
     output.write(lsblk_output + "\n")
     if verbose_mode is True:
         print(lsblk_output)
     print("Done.")
-# endregion
 
 
 def get_nvmesh_services():
     if get_cmd_output(CMD_GET_NVMESH_SERVICES)[0] == 0:
-        nvmesh_services = return_cmd_output(CMD_GET_NVMESH_SERVICES).splitlines()
+        nvmesh_services = get_command_return_code(CMD_GET_NVMESH_SERVICES).splitlines()
         if len(nvmesh_services) > 0:
             return nvmesh_services
     else:
@@ -499,26 +572,30 @@ def get_nvmesh_service_details(nvmesh_service):
         return None
 
 
-# region Collecting NVMe Storage Configuration Information
 def get_nvme_storage_info():
     nvmesh_services = get_nvmesh_services()
     if nvmesh_services is not None:
         print("Found that NVMesh software components are installed already. Checking the NVMesh services now...")
         for service in nvmesh_services:
-            nvmesh_service_details = get_nvmesh_service_details(service.split(" ")[0]).strip()
+            nvmesh_service_details = get_nvmesh_service_details(service.split(" ")[0])
             if "ok" in service.lower():
                 print print_green(service)
-                output.writelines(str(nvmesh_service_details))
+                output.writelines(nvmesh_service_details)
+                toma_leader = get_cmd_output(CMD_GET_TOMA_LEADER)[1]
+                print "TOMA leader: ", toma_leader
+                output.write(toma_leader)
                 if verbose_mode is True:
                     print nvmesh_service_details
+                return
             else:
                 print print_yellow(service)
-                output.writelines(str(nvmesh_service_details))
+                output.write(str(nvmesh_service_details))
                 if verbose_mode is True:
-                    print nvmesh_service_details
+                    print str(nvmesh_service_details)
+                return
     else:
         if get_cmd_output(CMD_CHECK_FOR_NVME_CLI)[0] == 0:
-            nvme_list_output = return_cmd_output(CMD_GET_NVME_SSD).splitlines()
+            nvme_list_output = get_command_return_code(CMD_GET_NVME_SSD).splitlines()
             if os_platform == "sles":
                 if len(nvme_list_output) > 2:
                     for line in nvme_list_output:
@@ -527,22 +604,25 @@ def get_nvme_storage_info():
                         for line in nvme_list_output:
                             print(line)
                 else:
-                    print print_yellow("No NVMe SSD found on this server! This server can only be configured as a NVMesh "
+                        print print_yellow("No NVMe SSD found on this server! This server can only be configured as a NVMesh "
                                            "Client.")
+                        return
             else:
-                nvme_numa_output = return_cmd_output(CMD_GET_NVME_SDD_NUMA)
-                if len(nvme_numa_output) > 0:
-                    if verbose_mode is True:
-                        for line in nvme_list_output:
-                            print(line)
-                        print("\n" + nvme_numa_output)
-                        output.write("\n" + nvme_numa_output + "\n")
-                        for line in nvme_list_output:
-                            output.write(line + "\n")
-            print("Done.")
-            return
+                nvme_numa_output = get_command_return_code(CMD_GET_NVME_SDD_NUMA)
+                if verbose_mode is True:
+                    for line in nvme_list_output:
+                        print(line)
+                    print("\n" + nvme_numa_output)
+                    output.write("\n" + nvme_numa_output + "\n")
+                    for line in nvme_list_output:
+                        output.write(line + "\n")
+                else:
+                    print print_yellow(
+                        "No NVMe SSD found on this server! This server can only be configured as a NVMesh "
+                        "Client.")
+                    return
         else:
-            print print_yellow("The nvme-cli tools seem to be missing!")
+            print print_yellow("The nvme-cli tools seem missing!")
             if set_parameters is True:
                 if "y" in raw_input("Do you want to install the nvme-cli?[Yes/No]: ").lower():
                     if "suse" in (platform.linux_distribution()[0]).lower():
@@ -555,12 +635,10 @@ def get_nvme_storage_info():
                     return
 
     print("Done.")
-# endregion
 
 
-# region Collecting And Verifying R-NIC Information
 def get_and_verfy_rnic_conf():
-    rnics_output = return_cmd_output(CMD_GET_RNIC_INFO)
+    rnics_output = get_command_return_code(CMD_GET_RNIC_INFO)
     output.write("\n" + rnics_output + "\n")
     rnics = rnics_output.split("\n\n")
     for rnic in rnics:
@@ -590,13 +668,12 @@ def get_and_verfy_rnic_conf():
                 print print_yellow("\tThe HCA is capable of ") + max_rnic_speed_and_pcie_width[0][
                     1] + " but its running at " + actual_rnic_speed_and_pcie_with[0][
                           0] + "! Check BIOS and HW settings to ensure max performance and a stable environment!\n"
-# endregion
 
 
 def check_for_inbox_driver_packages(driver_packages):
     missing_inbox_drivers = []
     for rpm_package in driver_packages:
-        if "Error" in return_cmd_output(CMD_CHECK_RPM % rpm_package):
+        if "Error" in get_command_return_code(CMD_CHECK_RPM % rpm_package):
             missing_inbox_drivers.append(rpm_package)
             output.write("missing " + rpm_package + "!")
             print print_red("\t%s missing " % rpm_package + "!")
@@ -607,9 +684,8 @@ def check_for_inbox_driver_packages(driver_packages):
         return missing_inbox_drivers
 
 
-# region Collecting And Verifying Mellanox Driver Information
 def get_ofed_information():
-    ofed_version = return_cmd_output(CMD_GET_OFED_INFO)
+    ofed_version = get_command_return_code(CMD_GET_OFED_INFO)
     output.write("OFED: " + ofed_version + "\n")
     if "not found or not installed" in ofed_version:
         print "OFED not installed! Checking for inbox drivers now."
@@ -642,13 +718,11 @@ def get_ofed_information():
         print print_green("OFED installed - OK "), "\nVersion: " + ofed_version + "Please verify this information " \
                                                                                   "with the latest support matrix!"
     return
-# endregion
 
 
-# region Collecting and Verifying RDMA HCA Information
 def get_and_veryfy_rdma_conf():
     if get_cmd_output(CMD_GET_OFED_INFO)[0] == 0:
-        ibv_devinfo_output = return_cmd_output(CMD_GET_IBV_DEVINFO)
+        ibv_devinfo_output = get_command_return_code(CMD_GET_IBV_DEVINFO)
         output.write(ibv_devinfo_output + "\n")
         hca_list = re.findall(REGEX_HCA_LIST, ibv_devinfo_output, re.MULTILINE)
         for (hca, guid1, guid2, guid3, guid4) in hca_list:
@@ -656,7 +730,7 @@ def get_and_veryfy_rdma_conf():
                 print print_red(hca + " guid information seems incorrect or missing. Please check!")
             else:
                 print print_green(hca + " guid OK")
-            one_qp_per_recovery = re.sub("\s\s+", " ", (return_cmd_output(CMD_GET_ONE_QP % hca).lstrip(" ")))
+            one_qp_per_recovery = re.sub("\s\s+", " ", (get_command_return_code(CMD_GET_ONE_QP % hca).lstrip(" ")))
             if "True" in one_qp_per_recovery:
                 print print_green(hca + " ready and configured for RDDA")
             elif "False" in one_qp_per_recovery:
@@ -668,70 +742,33 @@ def get_and_veryfy_rdma_conf():
                     hca + " will not support RDDA due to firmware limitations on the HCA. If you intent to use RDDA, you "
                           "have to update the firmware and enable ONE_QP_PER_RECOVERY on the HCA.")
         if verbose_mode is True:
-            print(return_cmd_output(CMD_GET_IBDEV2NETDEV))
+            print(get_command_return_code(CMD_GET_IBDEV2NETDEV))
     else:
         print print_yellow("OFED is not installed! Skipping the R-NIC settings check.")
     print("Done.")
     return 0
-# endregion
 
 
-# region Collect Infiniband Environment Specific Information
 def get_ib_info():
     if get_cmd_output(CMD_GET_OFED_INFO)[0] != 0:
         print print_yellow("OFED is not installed! Skipping the IB environment check.")
     else:
-        output.write(return_cmd_output(CMD_GET_IBHOSTS) + "\n" + return_cmd_output(CMD_GET_IBSWITCHES) + "\n")
+        output.write(get_command_return_code(CMD_GET_IBHOSTS) + "\n" + get_command_return_code(CMD_GET_IBSWITCHES) + "\n")
         if verbose_mode is True:
-            print return_cmd_output(CMD_GET_IBHOSTS), "\n" + return_cmd_output(CMD_GET_IBSWITCHES)
+            print get_command_return_code(CMD_GET_IBHOSTS), "\n" + get_command_return_code(CMD_GET_IBSWITCHES)
     print("Done.")
     return 0
-# endregion
 
 
-# region Collect IP Address Information
 def get_ip_info():
-    output.write(return_cmd_output(CMD_GET_IP_INFO))
+    output.write(get_command_return_code(CMD_GET_IP_INFO))
     if verbose_mode is True:
-        print return_cmd_output(CMD_GET_IP_INFO)
+        print get_command_return_code(CMD_GET_IP_INFO)
     print("Done.")
-# endregion
 
 
-if __name__ == "__main__":
-
-    parser = argparse.ArgumentParser()
-    parser.add_argument('-m', '--mode',
-                        help='Please specify the run mode. Either preinstall, healthcheck or full. Usage nvmeshdiag '
-                             '-m/--mode [preinstall|healthcheck|full]', required=False)
-    parser.add_argument('-v', '--verbose', type=bool, nargs='?', const=True, default=False,
-                        help="Activate verbose output mode.")
-    parser.add_argument('-s', '--set-parameters', type=bool, nargs='?', const=True, default=False,
-                        help="Set the recommended parameters where possible.")
-    args = parser.parse_args()
-    exec_mode = getattr(args, "mode")
-    verbose_mode = getattr(args, "verbose")
-    set_parameters = getattr(args, "set_parameters")
-
-    host_name = platform.node()
-    output = open(host_name + '_' + str(datetime.datetime.utcnow()).replace(" ", "_") + '_nvmesh_diag_output.txt', 'w')
-
-    logging.basicConfig(filename='nvmesh_diag.log', format='%(asctime)s\t%(levelname)s\t%(message)s',
-                        datefmt='%m/%d/%Y %I:%M:%S %p', level=logging.DEBUG)
-    logging.debug(
-        "Execution Started -------------------------------------------------------------------------------------")
-    logging.debug("Execution mode: " + unicode(exec_mode))
-    logging.debug("Verbose output enabled: " + unicode(verbose_mode))
-    logging.debug("Setting recommended parameters: " + unicode(set_parameters))
-    logging.debug("Storing output to: " + output.name)
-
+def run_diag():
     os_platform = get_os_platform()
-    if os_platform is None:
-        print print_red("Error: OS platform not supported!")
-        exit()
-    else:
-        logging.debug("OS platform: %s" % os_platform)
-
     print_and_log_info("Collecting Host Name Information:")
     get_hostname()
     print_and_log_info("\nCollecting Hardware Vendor and System Information:")
@@ -763,3 +800,6 @@ if __name__ == "__main__":
     print_and_log_info("\nCollecting IP Address Information:")
     get_ip_info()
 
+
+if __name__ == "__main__":
+    run_diag()
