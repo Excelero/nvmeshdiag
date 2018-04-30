@@ -30,6 +30,7 @@
 # Maintainer:    Andreas Krause
 # Email:         andreas@excelero.com
 
+
 import argparse
 import subprocess
 from tempfile import TemporaryFile
@@ -131,7 +132,6 @@ logging.debug(
 logging.debug("Verbose output enabled: " + unicode(verbose_mode))
 logging.debug("Setting recommended parameters: " + unicode(set_parameters))
 logging.debug("Storing output to: " + output.name)
-os_platform = None
 
 
 def get_cmd_output(cmd_to_execute):
@@ -250,6 +250,9 @@ def get_os_platform():
         exit(1)
 
 
+os_platform = get_os_platform()
+
+
 def get_os_information():
     os_details = platform.linux_distribution()[0:2]
     kernel_version = str(platform.release())
@@ -270,6 +273,7 @@ def get_and_verify_selinux():
             if set_parameters is True:
                 if "y" in raw_input("Do you want to Disable SELinux now?[Yes/No]: ").lower():
                     print "Disabeling SELinux...\t", (run_cmd(CMD_DISABLE_SELINUX))
+                    return
                 else:
                     print("No it is. Going on...")
             if verbose_mode is True:
@@ -400,9 +404,9 @@ def get_and_verify_firewall_rhel():
 def get_and_verify_firewall():
     if os_platform == "rhel":
         get_and_verify_firewall_rhel()
-        return
     elif os_platform == "sles":
         get_and_verify_firewall_suse()
+    else:
         return
 
 
@@ -770,7 +774,6 @@ def get_ip_info():
 
 
 def run_diag():
-    os_platform = get_os_platform()
     print_and_log_info("Collecting Host Name Information:")
     get_hostname()
     print_and_log_info("\nCollecting Hardware Vendor and System Information:")
