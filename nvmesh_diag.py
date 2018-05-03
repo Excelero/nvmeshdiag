@@ -40,11 +40,11 @@ import datetime
 import re
 
 
-REGEX_HCAID = r"(mlx5_\d*)"
+REGEX_HCAID = r"(mlx\d_\d*)"
 REGEX_INSTALLED_MEMORY = r"\S*Mem:\s*(\d*[A-Za-z])"
 REGEX_HCA_MAX = r"LnkCap:\s\S*\s\S*\s\S*\s([A-Za-z0-9]*/s),\s\S*\s(\S[0-9]*)"
 REGEX_HCA_ACTUAL = r"LnkSta:\s\S*\S*\s([A-Za-z0-9]*/s),\s\S*\s(\S[0-9]*)"
-REGEX_HCA_LIST = "(mlx5_\\d*)\\s*node_guid:\\s*([A-Za-z0-9]*):([A-Za-z0-9]*):([A-Za-z0-9]*):([A-Za-z0-9]*)"
+REGEX_HCA_LIST = "(mlx\d_\\d*)\\s*node_guid:\\s*([A-Za-z0-9]*):([A-Za-z0-9]*):([A-Za-z0-9]*):([A-Za-z0-9]*)"
 EXCELERO_MANAGEMENT_PORTS = [("tcp", 4000), ("tcp", 4001)]
 ROCEV2_TARGET_PORT = ("udp", 4791)
 MONGODB_PORT = ("tcp", 27017)
