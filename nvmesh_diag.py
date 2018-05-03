@@ -231,7 +231,7 @@ def get_hardware_information():
         if verbose_mode is True:
             print system_information[1].strip(), system_information[2]
     else:
-        print print_yellow("Couldn't collect hardware information!")
+        print print_yellow("Couldn't find the dmidecode tools. Skipping this step")
     print("Done.")
 
 
@@ -246,9 +246,8 @@ def get_os_platform():
     elif "oracle" in linux_distributuion:
         return "rhel"
     else:
-        print print_red("Unsupported Linux distribution!"), "RHEL/CentOS 7.3, 7.4; Oracle Linux 7.4, 7.5 and SLES 12 SP3 are the only " \
-                                                            "Linux distributions supported in this version."
-        exit(1)
+        print print_yellow("Untested Linux distribution!"), "RHEL/CentOS 7.3, 7.4; Oracle Linux 7.4, 7.5 and SLES 12 SP3 are tested " \
+                                                            "Linux distributions for this version."
 
 
 os_platform = get_os_platform()
@@ -258,42 +257,44 @@ def get_os_information():
     os_details = platform.linux_distribution()[0:2]
     kernel_version = str(platform.release())
     output.write(os_details[0] + os_details[1] + kernel_version + "\n\n")
-    print os_details[0], os_details[
-        1], kernel_version, "\nPlease verify this information with the latest support matrix!"
-    print("Done.")
+    print ' '.join([os_details[0], os_details[1], kernel_version,
+                    "\nPlease verify this information with the latest support matrix!"])
 
 
 def get_and_verify_selinux():
     if get_cmd_output(CMD_CHECK_FOR_SESTATUS)[0] == 0:
         selinux_status = get_command_return_code(CMD_GET_SETSTATUS).splitlines()
-        for line in selinux_status:
-            output.write(line + "\n")
-        output.write("\n")
         if not selinux_status[0].split(":")[1].strip() == "disabled":
             print print_red("SELinux active. Should be disabled!")
+            if verbose_mode is True:
+                for line in selinux_status:
+                    print(line)
             if set_parameters is True:
                 if "y" in raw_input("Do you want to Disable SELinux now?[Yes/No]: ").lower():
                     print "Disabeling SELinux...\t", (run_cmd(CMD_DISABLE_SELINUX))
                     return
-                else:
-                    print("No it is. Going on...")
-            if verbose_mode is True:
-                for line in selinux_status:
-                    print(line)
+            else:
+                print("No it is. Going on...")
+                return
+
             print("\n")
         else:
             print print_green("Disabled - OK")
+            return
     else:
         print print_yellow("Couldn't find the SElinux policy tools, will try with 'getenforce' now.")
         if get_cmd_output(CMD_CHECK_FOR_GETENFORCE)[0] == 0:
             if "disabled" in get_command_return_code(CMD_SELINUX_GETENFORCE).lower():
                 print print_green("Disabled - OK")
+                return
             else:
                 if set_parameters is True:
                     if "y" in raw_input("Do you want to Disable SELinux now?[Yes/No]: ").lower():
                         print(run_cmd(CMD_DISABLE_SELINUX))
+                        return
                     else:
                         print("No it is. Going on...")
+                        return
         else:
             if "suse" in platform.linux_distribution()[0].lower():
                 print print_yellow("Couldn't find any SElinux tools or config and the OS is SuSE, will check the"
@@ -311,8 +312,12 @@ def get_and_verify_selinux():
                             return
                         else:
                             print("No it is. Going on...")
+                            return
                 else:
-                    print print_green("AppArmor not runnning - OK")
+                    print print_green("AppArmor not running - OK")
+                    return
+            else:
+                print print_yellow("Couldn't find the SElinux or the SuSE AppArmor tools. Skipping this step.")
 
 
 def get_and_verify_firewall_suse():
@@ -327,14 +332,14 @@ def get_and_verify_firewall_suse():
                 return
             else:
                 print("No it is. Going on...")
-
+                return
     elif firewall_running is False:
         print print_green("Disabled - OK")
         return 3
 
     else:
-        print print_red("Error: Couldn't verify firewalld!")
-        return None
+        print print_yellow("Couldn't verify firewall settings. Skipping this step.")
+        return
     return
 
 
@@ -395,48 +400,49 @@ def get_and_verify_firewall_rhel():
 
     elif firewall_running is False:
         print print_green("Disabled - OK")
-        return 3
+        return
 
     else:
-        print print_red("Error: Couldn't verify firewalld!")
-        return None
-
-
-def get_and_verify_firewall():
-    if os_platform == "rhel":
-        get_and_verify_firewall_rhel()
-    elif os_platform == "sles":
-        get_and_verify_firewall_suse()
-    else:
+        print print_red("Error: Couldn't verify the firewall settings. Skipping this step.")
         return
 
 
+def get_and_verify_firewall():
+    if os_platform == "sles":
+        get_and_verify_firewall_suse()
+    else:
+        get_and_verify_firewall_rhel()
+
+
 def get_and_verify_cpu():
-    cpu_info = get_command_return_code("lscpu").split("\n")
-    for line in cpu_info:
-        output.write(line + "\n")
-    output.write("\n")
-    actual_cpu_frequency = None
-    max_cpu_frequency = None
-    for line in cpu_info:
-        if "Socket(s)" in line:
-            print line.split(":")[1].strip() + " Physical CPU"
-        if "Model name" in line:
-            print line.split(":")[1].lstrip()
-        if "CPU MHz" in line:
-            actual_cpu_frequency = float((line.split(":")[1]).strip())
-            max_frequency_info = re.compile("\d+")
-            for frequency in get_command_return_code("dmidecode -s processor-frequency").split("\n"):
-                match = max_frequency_info.search(frequency)
-                if match:
-                    max_cpu_frequency = float(match.group(0))
-    if actual_cpu_frequency and max_cpu_frequency is not None:
-        if max_cpu_frequency - actual_cpu_frequency >= float(100):
-            print print_yellow(
-                "Actual running CPU frequency is lower than the maximum CPU frequency. This might impact performance! "
-                "Check BIOS settings and verify System Tuning settings as below.\n")
-        else:
-            print print_green("CPU frequency settings OK.\n")
+    if get_cmd_output('which lscpu')[0] == 0:
+        cpu_info = get_cmd_output("lscpu")[1].split("\n")
+        for line in cpu_info:
+            output.write(line + "\n")
+        output.write("\n")
+        actual_cpu_frequency = None
+        max_cpu_frequency = None
+        for line in cpu_info:
+            if "Socket(s)" in line:
+                print line.split(":")[1].strip() + " Physical CPU"
+            if "Model name" in line:
+                print line.split(":")[1].lstrip()
+            if "CPU MHz" in line:
+                actual_cpu_frequency = float((line.split(":")[1]).strip())
+                max_frequency_info = re.compile("\d+")
+                for frequency in get_cmd_output("dmidecode -s processor-frequency")[1].split("\n"):
+                    match = max_frequency_info.search(frequency)
+                    if match:
+                        max_cpu_frequency = float(match.group(0))
+        if actual_cpu_frequency and max_cpu_frequency is not None:
+            if max_cpu_frequency - actual_cpu_frequency >= float(100):
+                print print_yellow(
+                    "Actual running CPU frequency is lower than the maximum CPU frequency. This might impact performance! "
+                    "Check BIOS settings and verify System Tuning settings as below.\n")
+            else:
+                print print_green("CPU frequency settings OK.\n")
+    else:
+        print print_yellow("Couldn't verify the CPU settings. Skipping this step.")
 
 
 def system_tuning_suse():
@@ -537,8 +543,7 @@ def get_and_verify_system_tuning():
 
     if os_platform == "sles":
         system_tuning_suse()
-
-    elif os_platform == "rhel":
+    else:
         system_tuning_rhel()
 
     print("Checking the IRQ balancer...")
@@ -598,13 +603,13 @@ def get_nvme_storage_info():
     nvmesh_services = get_nvmesh_services()
     if nvmesh_services is not None:
         print("Found that NVMesh software components are installed already. Checking the NVMesh services now...")
+        toma_leader = get_cmd_output(CMD_GET_TOMA_LEADER)[1]
+        print "TOMA leader: ", toma_leader
         for service in nvmesh_services:
             nvmesh_service_details = get_nvmesh_service_details(service.split(" ")[0])
             if "ok" in service.lower():
                 print print_green(service)
                 output.writelines(nvmesh_service_details)
-                toma_leader = get_cmd_output(CMD_GET_TOMA_LEADER)[1]
-                print "TOMA leader: ", toma_leader
                 output.write(toma_leader)
                 if verbose_mode is True:
                     print nvmesh_service_details
@@ -626,8 +631,8 @@ def get_nvme_storage_info():
                         for line in nvme_list_output:
                             print(line)
                 else:
-                        print print_yellow("No NVMe SSD found on this server! This server can only be configured as a NVMesh "
-                                           "Client.")
+                        print print_yellow("No NVMe SSD found on this server! This server can only be configured as "
+                                           "a NVMesh client.")
                         return
             else:
                 nvme_numa_output = get_command_return_code(CMD_GET_NVME_SDD_NUMA)
@@ -660,36 +665,39 @@ def get_nvme_storage_info():
 
 
 def get_and_verfy_rnic_conf():
-    rnics_output = get_command_return_code(CMD_GET_RNIC_INFO)
-    output.write("\n" + rnics_output + "\n")
-    rnics = rnics_output.split("\n\n")
-    for rnic in rnics:
-        max_rnic_speed_and_pcie_width = re.findall(REGEX_HCA_MAX, rnic)
-        actual_rnic_speed_and_pcie_with = re.findall(REGEX_HCA_ACTUAL, rnic)
-        rnic_details = rnic.splitlines()
-        if len(rnic_details) > 0:
-            print("Checking HCA at PCIe address: " + rnic_details[0])
-            print("\tVendor/OEM information:" + rnic_details[2].split("Device")[0])
-            try:
-                if "Product Name" in rnic_details[8]:
-                    print "\tHCA Type: " + rnic_details[8].split(":")[1]
-            except:
-                pass
-            print("\tFirmware level: " + rnic_details[1].split(":")[1].strip())
+    if get_cmd_output("which lspci")[0] == 0:
+        rnics_output = get_command_return_code(CMD_GET_RNIC_INFO)
+        output.write("\n" + rnics_output + "\n")
+        rnics = rnics_output.split("\n\n")
+        for rnic in rnics:
+            max_rnic_speed_and_pcie_width = re.findall(REGEX_HCA_MAX, rnic)
+            actual_rnic_speed_and_pcie_with = re.findall(REGEX_HCA_ACTUAL, rnic)
+            rnic_details = rnic.splitlines()
+            if len(rnic_details) > 0:
+                print("Checking HCA at PCIe address: " + rnic_details[0])
+                print("\tVendor/OEM information:" + rnic_details[2].split("Device")[0])
+                try:
+                    if "Product Name" in rnic_details[8]:
+                        print "\tHCA Type: " + rnic_details[8].split(":")[1]
+                except:
+                    pass
+                print("\tFirmware level: " + rnic_details[1].split(":")[1].strip())
 
-            if max_rnic_speed_and_pcie_width[0][0] == actual_rnic_speed_and_pcie_with[0][0]:
-                print print_green("\tHCA PCIe speed settings OK. Running at " + actual_rnic_speed_and_pcie_with[0][0])
-            else:
-                print print_yellow("\tThe HCA is capable of ") + max_rnic_speed_and_pcie_width[0][
-                    0] + " but its running at " + actual_rnic_speed_and_pcie_with[0][
-                          0] + "! Check BIOS and HW settings to ensure max performance and a stable environment!"
-            if max_rnic_speed_and_pcie_width[0][1] == actual_rnic_speed_and_pcie_with[0][1]:
-                print print_green(
-                    "\tHCA PCIe width settings OK. Running at " + actual_rnic_speed_and_pcie_with[0][1]) + "\n"
-            else:
-                print print_yellow("\tThe HCA is capable of ") + max_rnic_speed_and_pcie_width[0][
-                    1] + " but its running at " + actual_rnic_speed_and_pcie_with[0][
-                          0] + "! Check BIOS and HW settings to ensure max performance and a stable environment!\n"
+                if max_rnic_speed_and_pcie_width[0][0] == actual_rnic_speed_and_pcie_with[0][0]:
+                    print print_green("\tHCA PCIe speed settings OK. Running at " + actual_rnic_speed_and_pcie_with[0][0])
+                else:
+                    print print_yellow("\tThe HCA is capable of ") + max_rnic_speed_and_pcie_width[0][
+                        0] + " but its running at " + actual_rnic_speed_and_pcie_with[0][
+                              0] + "! Check BIOS and HW settings to ensure max performance and a stable environment!"
+                if max_rnic_speed_and_pcie_width[0][1] == actual_rnic_speed_and_pcie_with[0][1]:
+                    print print_green(
+                        "\tHCA PCIe width settings OK. Running at " + actual_rnic_speed_and_pcie_with[0][1]) + "\n"
+                else:
+                    print print_yellow("\tThe HCA is capable of ") + max_rnic_speed_and_pcie_width[0][
+                        1] + " but its running at " + actual_rnic_speed_and_pcie_with[0][
+                              0] + "! Check BIOS and HW settings to ensure max performance and a stable environment!\n"
+    else:
+        print print_yellow("Couldn't lspci. The pciutils package seems missing. Skipping this step.")
 
 
 def check_for_inbox_driver_packages(driver_packages):
@@ -742,7 +750,7 @@ def get_ofed_information():
     else:
         print print_green("OFED installed - OK "), "\nVersion: " + ofed_version + "Please verify this information " \
                                                                                   "with the latest support matrix!"
-    return
+        return
 
 
 def get_and_veryfy_rdma_conf():
@@ -755,28 +763,30 @@ def get_and_veryfy_rdma_conf():
                 print print_red(hca + " guid information seems incorrect or missing. Please check!")
             else:
                 print print_green(hca + " guid OK")
-            one_qp_per_recovery = re.sub("\s\s+", " ", (get_command_return_code(CMD_GET_ONE_QP % hca).lstrip(" ")))
-            if "True" in one_qp_per_recovery:
-                print print_green(hca + " ready and configured for RDDA")
-            elif "False" in one_qp_per_recovery:
-                print print_yellow(
-                    hca + " will support RDDA but is not configured correctly. You have to enable ONE_QP_PER_RECOVERY in "
-                          "the Mellanox firmware if you want to use RDDA")
-            elif "-E-" in one_qp_per_recovery:
-                print print_red(
-                    hca + " will not support RDDA due to firmware limitations on the HCA. If you intent to use RDDA, you "
-                          "have to update the firmware and enable ONE_QP_PER_RECOVERY on the HCA.")
+            if int(re.findall("mlx(\d)", hca)[0]) < 5:
+                continue
+            else:
+                one_qp_per_recovery = re.sub("\s\s+", " ", (get_command_return_code(CMD_GET_ONE_QP % hca).lstrip(" ")))
+                if "True" in one_qp_per_recovery:
+                    print print_green(hca + " ready and configured for RDDA")
+                elif "False" in one_qp_per_recovery:
+                    print print_yellow(
+                        hca + " will support RDDA but is not configured correctly. You have to enable ONE_QP_PER_RECOVERY in "
+                              "the Mellanox firmware if you want to use RDDA")
+                elif "-E-" in one_qp_per_recovery:
+                    print print_red(
+                        hca + " will not support RDDA due to firmware limitations on the HCA. If you intent to use RDDA, you "
+                              "have to update the firmware and enable ONE_QP_PER_RECOVERY on the HCA.")
         if verbose_mode is True:
             print(get_command_return_code(CMD_GET_IBDEV2NETDEV))
     else:
         print print_yellow("OFED is not installed! Skipping the R-NIC settings check.")
-    print("Done.")
-    return 0
 
 
 def get_ib_info():
     if get_cmd_output(CMD_GET_OFED_INFO)[0] != 0:
         print print_yellow("OFED is not installed! Skipping the IB environment check.")
+        return
     else:
         output.write(get_command_return_code(CMD_GET_IBHOSTS) + "\n" + get_command_return_code(CMD_GET_IBSWITCHES) + "\n")
         if verbose_mode is True:
