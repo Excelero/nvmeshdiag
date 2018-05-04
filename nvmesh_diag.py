@@ -774,7 +774,7 @@ def get_and_veryfy_rdma_conf():
                               "the Mellanox firmware if you want to use RDDA")
                     if set_parameters is True:
                         if "y" in raw_input("Do you want to configuree and set up RDDA in the RNIC now?[Yes/No]: "):
-                           print get_command_return_code(CMD_SET_ONE_QP)
+                           print get_command_return_code(CMD_SET_ONE_QP % hca)
                         else:
                             print("No it is. Going on ...")                            
                 elif "-E-" in one_qp_per_recovery:
