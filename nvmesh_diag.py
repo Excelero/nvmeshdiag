@@ -54,7 +54,7 @@ RHEL_INBOX_DRIVERS = ["libibverbs", "librdmacm", "libibcm", "libibmad", "libibum
 SLES_INBOX_DRIVERS = ["rdma-core", "librdmacm1", "libibmad5", "libibumad3"]
 CMD_GET_TUNED_POLICY = "tuned-adm active"
 CMD_SET_TUNED_PARAMETERS = "tuned-adm profile latency-performance"
-CMD_SET_ONE_QP = "mlxconfig -d %s -b ./Excelero_mlxconfig.db set ONE_QP_PER_RECOVERY=1"
+CMD_SET_ONE_QP = "mlxconfig -y -d %s -b ./Excelero_mlxconfig.db set ONE_QP_PER_RECOVERY=1"
 CMD_GET_ONE_QP = "mlxconfig -d %s -b ./Excelero_mlxconfig.db query ONE_QP_PER_RECOVERY | grep ONE_QP_PER_RECOVERY"
 CMD_DISABLE_FIREWALL = ["systemctl stop firewalld", "systemctl disable firewalld"]
 CMD_SET_FIREWALL_FOR_NVMESH_MGMT = ["firewall-cmd --permanent --direct --add-rule ipv4 filter INPUT 0 -p tcp --dport "
@@ -773,7 +773,7 @@ def get_and_veryfy_rdma_conf():
                         hca + " will support RDDA but is not configured correctly. You have to enable ONE_QP_PER_RECOVERY in "
                               "the Mellanox firmware if you want to use RDDA")
                     if set_parameters is True:
-                        if "y" in raw_input("Do you want to configuree and set up RDDA in the RNIC now?[Yes/No]: "):
+                        if "y" in raw_input("Do you want to configure and set up RDDA in the RNIC now?[Yes/No]: "):
                            print get_command_return_code(CMD_SET_ONE_QP % hca)
                         else:
                             print("No it is. Going on ...")                            
