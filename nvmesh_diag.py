@@ -26,7 +26,7 @@
 # and/or other materials provided with the distribution.
 #
 # Author:        Andreas Krause
-# Build:         2
+# Build:         4
 # Maintainer:    Andreas Krause
 # Email:         andreas@excelero.com
 
@@ -39,7 +39,6 @@ import platform
 import datetime
 import re
 
-
 REGEX_HCAID = r"(mlx\d_\d*)"
 REGEX_INSTALLED_MEMORY = r"\S*Mem:\s*(\d*[A-Za-z])"
 REGEX_HCA_MAX = r"LnkCap:\s\S*\s\S*\s\S*\s([A-Za-z0-9]*/s),\s\S*\s(\S[0-9]*)"
@@ -49,18 +48,18 @@ EXCELERO_MANAGEMENT_PORTS = [("tcp", 4000), ("tcp", 4001)]
 ROCEV2_TARGET_PORT = ("udp", 4791)
 MONGODB_PORT = ("tcp", 27017)
 RHEL_INBOX_DRIVERS = ["libibverbs", "librdmacm", "libibcm", "libibmad", "libibumad", "libmlx4", "libmlx5", "opensm",
-                          "ibutils", "infiniband-diags", "perftest", "mstflint", "rdmacmutils", "ibverbs-utils",
-                          "librdmacm-utils", "libibverbs-utils"]
+                      "ibutils", "infiniband-diags", "perftest", "mstflint", "rdmacmutils", "ibverbs-utils",
+                      "librdmacm-utils", "libibverbs-utils"]
 SLES_INBOX_DRIVERS = ["rdma-core", "librdmacm1", "libibmad5", "libibumad3"]
 CMD_GET_TUNED_POLICY = "tuned-adm active"
 CMD_SET_TUNED_PARAMETERS = "tuned-adm profile latency-performance"
-CMD_SET_ONE_QP = "mlxconfig -y -d %s -b ./Excelero_mlxconfig.db set ONE_QP_PER_RECOVERY=1"
+CMD_SET_ONE_QP = "mlxconfig -d %s -b ./Excelero_mlxconfig.db set ONE_QP_PER_RECOVERY=1"
 CMD_GET_ONE_QP = "mlxconfig -d %s -b ./Excelero_mlxconfig.db query ONE_QP_PER_RECOVERY | grep ONE_QP_PER_RECOVERY"
 CMD_DISABLE_FIREWALL = ["systemctl stop firewalld", "systemctl disable firewalld"]
 CMD_SET_FIREWALL_FOR_NVMESH_MGMT = ["firewall-cmd --permanent --direct --add-rule ipv4 filter INPUT 0 -p tcp --dport "
                                     "4000 -j ACCEPT -m comment --comment Excelero-Management", "firewall-cmd "
-                                    "--permanent --direct --add-rule ipv4 filter INPUT 0 -p tcp --dport 4001 -j "
-                                    "ACCEPT -m comment --comment Excelero-Management"]
+                                                                                               "--permanent --direct --add-rule ipv4 filter INPUT 0 -p tcp --dport 4001 -j "
+                                                                                               "ACCEPT -m comment --comment Excelero-Management"]
 CMD_SET_FIREWALL_FOR_ROCEV2 = "firewall-cmd --permanent --direct --add-rule ipv4 filter INPUT 0 -p udp --dport " \
                               "4791 -j ACCEPT -m comment --comment RoCEv2-Target"
 CMD_SET_FIREWALL_FOR_MOGODB = "firewall-cmd --permanent --direct --add-rule ipv4 filter INPUT 0 -p tcp --dport 27017 " \
@@ -113,7 +112,8 @@ CMD_INSTALL_SLES_PACKAGE = "zypper install -y %s"
 CMD_INSTALL_RHEL_PACKAGE = "yum install -y %s"
 CMD_GET_TOMA_LEADER = "cat /var/log/NVMesh/toma_leader_name"
 CMD_INSTALL_TUNED_RHEL = "yum install -y tuned"
-
+CMD_INSTALL_PCI_UTILS_SLES = "zypper install -y pciutils"
+CMD_INSTALL_PCI_UTILS_RHEL = "yum install -y pciutils"
 
 parser = argparse.ArgumentParser()
 parser.add_argument('-v', '--verbose', type=bool, nargs='?', const=True, default=False,
@@ -161,7 +161,8 @@ def get_command_return_code(cmd):
                                 0] + " shows no data as there is no IB transport layer. Looks like Ethernet "
                                      "connectivity.")
     elif cmd_output[0] != 0:
-        return print_red(cmd_output[1])
+        return print_red("Error has occurred while executing " + cmd.strip().split(" ")[
+            0] + "! Details can be found in the nvmesh_diag.log file.")
 
 
 def run_cmd(cmd):
@@ -245,8 +246,9 @@ def get_os_platform():
     elif "oracle" in linux_distributuion:
         return "rhel"
     else:
-        print print_yellow("Untested Linux distribution!"), "RHEL/CentOS 7.3, 7.4; Oracle Linux 7.4, 7.5 and SLES 12 SP3 are tested " \
-                                                            "Linux distributions for this version."
+        print print_yellow(
+            "Untested Linux distribution!"), "RHEL/CentOS 7.3, 7.4; Oracle Linux 7.4, 7.5 and SLES 12 SP3 are tested " \
+                                             "Linux distributions for this version."
 
 
 os_platform = get_os_platform()
@@ -264,7 +266,7 @@ def get_and_verify_selinux():
     if get_cmd_output(CMD_CHECK_FOR_SESTATUS)[0] == 0:
         selinux_status = get_command_return_code(CMD_GET_SETSTATUS).splitlines()
         if not selinux_status[0].split(":")[1].strip() == "disabled":
-            print print_red("SELinux active. Should be disabled!")
+            print print_yellow("SELinux active. It's recommended to disable SELinux!")
             if verbose_mode is True:
                 for line in selinux_status:
                     print(line)
@@ -273,9 +275,7 @@ def get_and_verify_selinux():
                     print "Disabeling SELinux...\t", (run_cmd(CMD_DISABLE_SELINUX))
                     return
             else:
-                print("No it is. Going on...")
                 return
-
             print("\n")
         else:
             print print_green("Disabled - OK")
@@ -292,7 +292,6 @@ def get_and_verify_selinux():
                         print(run_cmd(CMD_DISABLE_SELINUX))
                         return
                     else:
-                        print("No it is. Going on...")
                         return
         else:
             if "suse" in platform.linux_distribution()[0].lower():
@@ -310,7 +309,6 @@ def get_and_verify_selinux():
                             print "Disabling AppArmor services...\t", run_cmd(CMD_DISABLE_APPARMOR)
                             return
                         else:
-                            print("No it is. Going on...")
                             return
                 else:
                     print print_green("AppArmor not running - OK")
@@ -330,7 +328,6 @@ def get_and_verify_firewall_suse():
                 print "Disabling SuSEfirewall2...\t", run_cmd(CMD_DISABLE_SUSE_FIREWALL)
                 return
             else:
-                print("No it is. Going on...")
                 return
     elif firewall_running is False:
         print print_green("Disabled - OK")
@@ -351,39 +348,40 @@ def get_and_verify_firewall_rhel():
         print(print_yellow("Firewall active!"))
 
         if set_parameters is True:
-            if "y" in raw_input("Do you want to disable the firewall now?[Yes/No]: ").lower():
+            if "y" in raw_input("Do you want to stop and disable the firewall now?[Yes/No]: ").lower():
                 for command in CMD_DISABLE_FIREWALL:
                     print(run_cmd(command))
                 return
-            else:
-                print("No it is. Going on...")
 
+        if set_parameters is True:
+            if "n" in raw_input("Do you want to configure the required firewall rules now?[Yes/No]: ").lower():
+                return
         if re.findall(r"%s dpt:%s" % (EXCELERO_MANAGEMENT_PORTS[0][0], EXCELERO_MANAGEMENT_PORTS[0][1]),
-                      iptables_output) and re.findall(
-            r"%s dpt:%s" % (EXCELERO_MANAGEMENT_PORTS[1][0], EXCELERO_MANAGEMENT_PORTS[1][1]), iptables_output):
+                      iptables_output) and re.findall(r"%s dpt:%s" % (EXCELERO_MANAGEMENT_PORTS[1][0],
+                                                                      EXCELERO_MANAGEMENT_PORTS[1][1]),
+                                                      iptables_output):
             print print_green("For NVMesh Client operations OK. Excelero Management ports are configured.")
         else:
             print print_red(
-                "Not OK for NVMesh client operations. Excelero Management ports tcp 4000 and tcp 4001 must be set and "
-                "open!")
+                "Not OK for NVMesh client operations. "
+                "Excelero Management ports tcp 4000 and tcp 4001 must be set and open!")
             if set_parameters is True:
                 if "y" in raw_input("Do you want to open port 4000 and 4001 now?[Yes/No]: ").lower():
                     for command in CMD_SET_FIREWALL_FOR_NVMESH_MGMT:
                         print(run_cmd(command))
-                else:
-                    print("No it is. Going on...")
+                    print "Reloading the firewall rules to apply changes.\n", run_cmd(CMD_RELOAD_FIREWALL_RULES)
 
         if re.findall(r"%s dpt:%s" % (ROCEV2_TARGET_PORT[0], ROCEV2_TARGET_PORT[1]), iptables_output):
-            print print_green("For NVMesh Target operations OK if the Link Layer is Ethernet. RoCEv2 ports are set.")
+            print print_green(
+                "For NVMesh Target operations OK if the Link Layer is Ethernet. RoCEv2 ports are set.")
         else:
             print print_red(
-                "Not OK for NVMesh Target operations if the Link Layer is Ethernet. RoCEv2 udp port 4791 must be set "
-                "and open!")
+                "Not OK for NVMesh Target operations if the Link Layer is Ethernet. "
+                "RoCEv2 udp port 4791 must be set and open!")
             if set_parameters is True:
                 if "y" in raw_input("Do you want to open port 4791 now?[Yes/No]: ").lower():
                     print(run_cmd(CMD_SET_FIREWALL_FOR_ROCEV2))
-            else:
-                print("No it is. Going on...")
+                    print "Reloading the firewall rules to apply changes.\n", run_cmd(CMD_RELOAD_FIREWALL_RULES)
 
         if re.findall(r"%s dpt:%s" % (MONGODB_PORT[0], MONGODB_PORT[1]), iptables_output):
             print print_green("For MongoDB HA operations OK. MongoDB ports are set.")
@@ -392,10 +390,7 @@ def get_and_verify_firewall_rhel():
             if set_parameters is True:
                 if "y" in raw_input("Do you want to open port 4791 now?[Yes/No]: ").lower():
                     print(run_cmd(CMD_SET_FIREWALL_FOR_MOGODB))
-                else:
-                    print("No it is. Going on...")
-        if set_parameters is True:
-            print "Reloading the firewall rules to apply changes.\n", run_cmd(CMD_RELOAD_FIREWALL_RULES)
+                    print "Reloading the firewall rules to apply changes.\n", run_cmd(CMD_RELOAD_FIREWALL_RULES)
 
     elif firewall_running is False:
         print print_green("Disabled - OK")
@@ -448,7 +443,7 @@ def system_tuning_suse():
     if get_cmd_output(CMD_CHECK_FOR_TUNED_ADM)[0] != 0:
 
         print print_yellow("Tis seems to be a server without Tuned installed and running. It's highly"
-                           "recommended to install and configure Tuned for best performance results!")
+                           " recommended to install and configure Tuned for best performance results!")
         if set_parameters is True:
             if "y" in raw_input("Do you want to install and configure tuned now?[Yes/No]: ").lower():
                 print "Installing Tuned ...\t", run_cmd(CMD_INSTALL_TUNED_SLES)
@@ -457,7 +452,6 @@ def system_tuning_suse():
                 print "Setting and enabling the throughput-latency tuned policy...\t", run_cmd(CMD_SET_TUNED_PARAMETERS)
                 return
             else:
-                print("No it is. Going on...")
                 return
 
     else:
@@ -470,7 +464,6 @@ def system_tuning_suse():
                     print "Enabling the Tuned service...\t", run_cmd(CMD_ENABLE_TUNED)
                     print "Starting the Tuned service...\t", run_cmd(CMD_START_TUNED)
                 else:
-                    print("No it is. Going on...")
                     return
 
         tuned_adm_info = get_command_return_code(CMD_GET_TUNED_POLICY)
@@ -484,10 +477,10 @@ def system_tuning_suse():
                 "enable the recommended Tuned profile and verify the Tuned service is running."))
             if set_parameters is True:
                 if "y" in raw_input("Do you want to set the recommended tuned parameters now?[Yes/No]: ").lower():
-                    print "Setting and enabling the throughput-latency tuned policy...\t", run_cmd(CMD_SET_TUNED_PARAMETERS)
+                    print "Setting and enabling the throughput-latency tuned policy...\t", run_cmd(
+                        CMD_SET_TUNED_PARAMETERS)
                     return
                 else:
-                    print("No it is. Going on...")
                     return
 
 
@@ -504,7 +497,6 @@ def system_tuning_rhel():
                 print "Setting and enabling the throughput-latency tuned policy...\t", run_cmd(CMD_SET_TUNED_PARAMETERS)
                 return
             else:
-                print("No it is. Going on...")
                 return
 
     tuned_service_running = check_if_service_is_running("tuned")
@@ -516,7 +508,6 @@ def system_tuning_rhel():
                 print "Enabling the Tuned service...\t", run_cmd(CMD_ENABLE_TUNED)
                 print "Starting the Tuned service...\t", run_cmd(CMD_START_TUNED)
             else:
-                print("No it is. Going on...")
                 return
 
     tuned_adm_info = get_command_return_code(CMD_GET_TUNED_POLICY)
@@ -533,13 +524,11 @@ def system_tuning_rhel():
                 print "Setting and enabling the throughput-latency tuned policy...\t", run_cmd(CMD_SET_TUNED_PARAMETERS)
                 return
             else:
-                print("No it is. Going on...")
                 return
     return
 
 
 def get_and_verify_system_tuning():
-
     if os_platform == "sles":
         system_tuning_suse()
     else:
@@ -555,8 +544,8 @@ def get_and_verify_system_tuning():
         print(print_yellow("The IRQ Balancer is not running. This might severely impact the system performance."))
         if set_parameters is True:
             if "y" in raw_input("Do you want to enable and start the IRQ Balance service now?[Yes/No]: "):
-                    print "Enabling the IRQ balance service...\t", run_cmd(CMD_ENABALE_IRQ_BALANCER)
-                    print "Starting the IRQ balance service...\t", run_cmd(CMD_START_IRQ_BALANCER)
+                print "Enabling the IRQ balance service...\t", run_cmd(CMD_ENABALE_IRQ_BALANCER)
+                print "Starting the IRQ balance service...\t", run_cmd(CMD_START_IRQ_BALANCER)
             else:
                 print("No it is. Going on...")
 
@@ -630,18 +619,19 @@ def get_nvme_storage_info():
                         for line in nvme_list_output:
                             print(line)
                 else:
-                        print print_yellow("No NVMe SSD found on this server! This server can only be configured as "
-                                           "a NVMesh client.")
-                        return
+                    print print_yellow("No NVMe SSD found on this server! This server can only be configured as "
+                                       "a NVMesh client.")
+                    return
             else:
                 nvme_numa_output = get_command_return_code(CMD_GET_NVME_SDD_NUMA)
-                if verbose_mode is True:
-                    for line in nvme_list_output:
-                        print(line)
-                    print("\n" + nvme_numa_output)
-                    output.write("\n" + nvme_numa_output + "\n")
-                    for line in nvme_list_output:
-                        output.write(line + "\n")
+                if len(nvme_list_output) > 2:
+                    if verbose_mode is True:
+                        for line in nvme_list_output:
+                            print(line)
+                        print("\n" + nvme_numa_output)
+                        output.write("\n" + nvme_numa_output + "\n")
+                        for line in nvme_list_output:
+                            output.write(line + "\n")
                 else:
                     print print_yellow(
                         "No NVMe SSD found on this server! This server can only be configured as a NVMesh "
@@ -657,7 +647,6 @@ def get_nvme_storage_info():
                         print "Installing nvme-cli ...\t", run_cmd(CMD_INSTALL_NVME_CLI_RHEL)
                     return get_nvme_storage_info()
                 else:
-                    print("No it is. Going on...")
                     return
 
     print("Done.")
@@ -683,7 +672,8 @@ def get_and_verfy_rnic_conf():
                 print("\tFirmware level: " + rnic_details[1].split(":")[1].strip())
 
                 if max_rnic_speed_and_pcie_width[0][0] == actual_rnic_speed_and_pcie_with[0][0]:
-                    print print_green("\tHCA PCIe speed settings OK. Running at " + actual_rnic_speed_and_pcie_with[0][0])
+                    print print_green(
+                        "\tHCA PCIe speed settings OK. Running at " + actual_rnic_speed_and_pcie_with[0][0])
                 else:
                     print print_yellow("\tThe HCA is capable of ") + max_rnic_speed_and_pcie_width[0][
                         0] + " but its running at " + actual_rnic_speed_and_pcie_with[0][
@@ -696,7 +686,13 @@ def get_and_verfy_rnic_conf():
                         1] + " but its running at " + actual_rnic_speed_and_pcie_with[0][
                               0] + "! Check BIOS and HW settings to ensure max performance and a stable environment!\n"
     else:
-        print print_yellow("Couldn't lspci. The pciutils package seems missing. Skipping this step.")
+        print print_yellow("Couldn't run 'lspci'. The pciutils package seems missing. Skipping this step.")
+        if "y" in raw_input("Do you want to install the pciutil package?[Yes/No]: ").lower():
+            if "suse" in (platform.linux_distribution()[0]).lower():
+                print "Installing nvme-cli ...\t", run_cmd(CMD_INSTALL_PCI_UTILS_SLES)
+            else:
+                print "Installing nvme-cli ...\t", run_cmd(CMD_INSTALL_PCI_UTILS_RHEL)
+            return get_and_verfy_rnic_conf()
 
 
 def check_for_inbox_driver_packages(driver_packages):
@@ -772,11 +768,6 @@ def get_and_veryfy_rdma_conf():
                     print print_yellow(
                         hca + " will support RDDA but is not configured correctly. You have to enable ONE_QP_PER_RECOVERY in "
                               "the Mellanox firmware if you want to use RDDA")
-                    if set_parameters is True:
-                        if "y" in raw_input("Do you want to configure and set up RDDA in the RNIC now?[Yes/No]: "):
-                           print get_command_return_code(CMD_SET_ONE_QP % hca)
-                        else:
-                            print("No it is. Going on ...")                            
                 elif "-E-" in one_qp_per_recovery:
                     print print_red(
                         hca + " will not support RDDA due to firmware limitations on the HCA. If you intent to use RDDA, you "
@@ -792,7 +783,8 @@ def get_ib_info():
         print print_yellow("OFED is not installed! Skipping the IB environment check.")
         return
     else:
-        output.write(get_command_return_code(CMD_GET_IBHOSTS) + "\n" + get_command_return_code(CMD_GET_IBSWITCHES) + "\n")
+        output.write(
+            get_command_return_code(CMD_GET_IBHOSTS) + "\n" + get_command_return_code(CMD_GET_IBSWITCHES) + "\n")
         if verbose_mode is True:
             print get_command_return_code(CMD_GET_IBHOSTS), "\n" + get_command_return_code(CMD_GET_IBSWITCHES)
     print("Done.")
