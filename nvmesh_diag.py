@@ -442,7 +442,7 @@ def get_and_verify_cpu():
 def system_tuning_suse():
     if get_cmd_output(CMD_CHECK_FOR_TUNED_ADM)[0] != 0:
 
-        print print_yellow("This seems to be a server without Tuned installed and running. It's highly"
+        print print_yellow("Tis seems to be a server without Tuned installed and running. It's highly"
                            " recommended to install and configure Tuned for best performance results!")
         if set_parameters is True:
             if "y" in raw_input("Do you want to install and configure tuned now?[Yes/No]: ").lower():
@@ -487,7 +487,7 @@ def system_tuning_suse():
 def system_tuning_rhel():
     if get_cmd_output(CMD_CHECK_FOR_TUNED_ADM)[0] != 0:
 
-        print print_yellow("Tis seems to be a server without Tuned installed and running. It's highly"
+        print print_yellow("This seems to be a server without Tuned installed and running. It's highly"
                            "recommended to install and configure Tuned for best performance results!")
         if set_parameters is True:
             if "y" in raw_input("Do you want to install and configure tuned now?[Yes/No]: ").lower():
@@ -687,12 +687,13 @@ def get_and_verfy_rnic_conf():
                               0] + "! Check BIOS and HW settings to ensure max performance and a stable environment!\n"
     else:
         print print_yellow("Couldn't run 'lspci'. The pciutils package seems missing. Skipping this step.")
-        if "y" in raw_input("Do you want to install the pciutil package?[Yes/No]: ").lower():
-            if "suse" in (platform.linux_distribution()[0]).lower():
-                print "Installing nvme-cli ...\t", run_cmd(CMD_INSTALL_PCI_UTILS_SLES)
-            else:
-                print "Installing nvme-cli ...\t", run_cmd(CMD_INSTALL_PCI_UTILS_RHEL)
-            return get_and_verfy_rnic_conf()
+        if set_parameters is True:
+            if "y" in raw_input("Do you want to install the pciutils package?[Yes/No]: ").lower():
+                if "suse" in (platform.linux_distribution()[0]).lower():
+                    print "Installing pciutils ...\t", run_cmd(CMD_INSTALL_PCI_UTILS_SLES)
+                else:
+                    print "Installing pciutils ...\t", run_cmd(CMD_INSTALL_PCI_UTILS_RHEL)
+                return get_and_verfy_rnic_conf()
 
 
 def check_for_inbox_driver_packages(driver_packages):
