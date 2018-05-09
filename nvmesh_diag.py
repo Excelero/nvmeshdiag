@@ -442,7 +442,7 @@ def get_and_verify_cpu():
 def system_tuning_suse():
     if get_cmd_output(CMD_CHECK_FOR_TUNED_ADM)[0] != 0:
 
-        print print_yellow("Tis seems to be a server without Tuned installed and running. It's highly"
+        print print_yellow("This seems to be a server without Tuned installed and running. It's highly"
                            " recommended to install and configure Tuned for best performance results!")
         if set_parameters is True:
             if "y" in raw_input("Do you want to install and configure tuned now?[Yes/No]: ").lower():
