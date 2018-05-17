@@ -769,6 +769,9 @@ def get_and_veryfy_rdma_conf():
                     print print_yellow(
                         hca + " will support RDDA but is not configured correctly. You have to enable ONE_QP_PER_RECOVERY in "
                               "the Mellanox firmware if you want to use RDDA")
+                    if set_parameters is True:
+                        if "y" in raw_input("Do you want to configuree and set up RDDA in the RNIC now?[Yes/No]: "):
+                           print get_command_return_code(CMD_SET_ONE_QP % hca)                           
                 elif "-E-" in one_qp_per_recovery:
                     print print_red(
                         hca + " will not support RDDA due to firmware limitations on the HCA. If you intent to use RDDA, you "
