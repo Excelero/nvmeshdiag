@@ -237,7 +237,6 @@ def get_hostname():
     print(host_name)
 
 
-
 def get_hardware_information():
     try:
         if get_cmd_output(CMD_CHECK_FOR_DMIDECODE)[0] == 0:
@@ -299,8 +298,8 @@ def get_and_verify_selinux():
                     for line in selinux_status:
                         print(line)
                 if set_parameters is True:
-                    if "y" in raw_input("Do you want to Disable SELinux now?[Yes/No]: ").lower():
-                        print "Disabeling SELinux...\t", (run_cmd(CMD_DISABLE_SELINUX))
+                    if "y" in raw_input("Do you want to disable SELinux now?[Yes/No]: ").lower():
+                        print "Disabling SELinux...\t", (run_cmd(CMD_DISABLE_SELINUX))
                         return
                 else:
                     return
@@ -316,7 +315,7 @@ def get_and_verify_selinux():
                     return
                 else:
                     if set_parameters is True:
-                        if "y" in raw_input("Do you want to Disable SELinux now?[Yes/No]: ").lower():
+                        if "y" in raw_input("Do you want to disable SELinux now?[Yes/No]: ").lower():
                             print(run_cmd(CMD_DISABLE_SELINUX))
                             return
                         else:
@@ -445,8 +444,8 @@ def get_and_verify_firewall_ubuntu():
         firewall_running = check_if_service_is_running("ufw")
 
         if firewall_running is True:
-            print(print_yellow("Firewall active!"),
-                  "\nPlease refer to the user documentation and configure the required TCP and UDP ports as documented.")
+            print_yellow("Firewall active!")
+            print("Please refer to the user documentation and configure the required TCP and UDP ports as documented.")
             if set_parameters is True:
                 if "y" in raw_input("Do you want to disable the firewall now?[Yes/No]: ").lower():
                     print "Stopping the Ubuntu Firewall (ufw) ...\t", run_cmd(CMD_STOP_SUSE_FIREWALL)
@@ -787,7 +786,7 @@ def get_nvme_storage_info():
                         "Client.")
                     return
         else:
-            print print_yellow("The nvme-cli tools seem missing!")
+            print print_yellow("The nvme-cli tool seems to be missing!")
             if set_parameters is True:
                 if "y" in raw_input("Do you want to install the nvme-cli?[Yes/No]: ").lower():
                     if os_platform == "suse":
@@ -940,7 +939,7 @@ def get_and_veryfy_rdma_conf():
                                 hca + " will not support RDDA due to firmware limitations on the HCA. If you intent to use RDDA, you "
                                       "have to update the firmware and enable ONE_QP_PER_RECOVERY on the HCA.")
                     else:
-                        print_yellow("Cannot find or open the file %s, skipping the RDDA readiness check."
+                        print print_yellow("Cannot find or open the file %s, skipping the RDDA readiness check."
                                      % EXCELERO_MLXCONFIG_DB)
             if verbose_mode is True:
                 print(get_command_return_code(CMD_GET_IBDEV2NETDEV))
@@ -1026,9 +1025,9 @@ def run_diag():
         try:
             print_and_log_info("\nRunning the NVMesh Log Collector:")
             print("Please wait ...")
-            log_ouput = get_command_return_code("nvmesh_logs_collector.py")
-            print(log_ouput)
-            output.write(log_ouput)
+            log_output = get_command_return_code("nvmesh_logs_collector.py")
+            print(log_output)
+            output.write(log_output)
         except Exception, e:
             logging.debug(e.message)
             print e.message
