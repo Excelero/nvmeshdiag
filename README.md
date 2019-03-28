@@ -9,7 +9,7 @@ Two options are available to easily install and execute nvmeshdiag.
 Download and execute the compiled binary, or
 Download the source code and compile the executable
 ## Download the binary:
-Go to https://github.com/Excelero/nvmeshdiag/bin and download the binary or clone the git repo with `git clone https://github.com/Excelero/nvmeshdiag` and navigate to the `bin` folder. Verify if the binary is executable and run it by simply typing `./nvmeshdiag`
+Go to https://github.com/Excelero/nvmeshdiag/, into the `bin` subfolder and download the binary or clone the git repo with `git clone https://github.com/Excelero/nvmeshdiag` and navigate to the `bin` folder. Verify if the binary is executable and run it by simply typing `./nvmeshdiag`
 ## Download and compile the source:
 First, as NVMesh drag is written in Go, if you want to compile the source code by yourself you need to install Go on your host. Please see the details on how to download and install Go here: https://golang.org
 
