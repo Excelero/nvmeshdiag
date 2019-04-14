@@ -11,7 +11,7 @@ func checkNvmeshInstalled() []string {
 
 	var slcNvmeshService []string
 	var strPackageQuery string
-	r := regexp.MustCompile(`(?i)nvmesh\-([a-z]*)`)
+	r := regexp.MustCompile(`(?i)(nvmesh\-[a-z]*\-\d*\.\d*\.\d*\-\d*)`)
 
 	if checkExecutableExists("apt") {
 		strPackageQuery, _ = runCommand(strings.Fields("apt list --installed"))
@@ -42,26 +42,30 @@ func checkNvmeshStatus() {
 		fmt.Println(formatBoldWhite("\nNVMesh Service Information:"))
 		for _, line := range slcNvmeshService {
 			if strings.Contains(line, "core") {
+				fmt.Println("\tNVMesh Core Package Information:", line)
 				status = statusFormat(getCommandReturnCode(strings.Fields("systemctl status nvmeshtarget")))
-				fmt.Println("\tNVMesh Target Service:", status)
+				fmt.Println("\tNVMesh Target Service Status:", status)
 				mReport["NVMesh Target Service: "] = status
 				status = statusFormat(getCommandReturnCode(strings.Fields("systemctl status nvmeshclient")))
-				fmt.Println("\tNVMesh Client Service:", status)
+				fmt.Println("\tNVMesh Client Service Status:", status)
 				mReport["NVMesh Client Service: "] = status
 			}
 			if strings.Contains(line, "management") {
+				fmt.Println("\tNVMesh Management Package Information:", line)
 				status = statusFormat(getCommandReturnCode(strings.Fields("systemctl status nvmeshmgr")))
-				fmt.Println("\tNVMesh Management Service:", status)
+				fmt.Println("\tNVMesh Management Service Status:", status)
 				mReport["NVMesh Management Service: "] = status
 			}
 			if strings.Contains(line, "target") {
+				fmt.Println("\tNVMesh Target Package Information:", line)
 				status = statusFormat(getCommandReturnCode(strings.Fields("systemctl status nvmeshtarget")))
-				fmt.Println("\tNVMesh Target Service:", status)
+				fmt.Println("\tNVMesh Target Service Status:", status)
 				mReport["NVMesh Target Service: "] = status
 			}
 			if strings.Contains(line, "client") {
+				fmt.Println("\tNVMesh Client Package Information:", line)
 				status = statusFormat(getCommandReturnCode(strings.Fields("systemctl status nvmeshtarget")))
-				fmt.Println("\tNVMesh Client Service:", status)
+				fmt.Println("\tNVMesh Client Service Status:", status)
 				mReport["NVMesh Client Service: "] = status
 			}
 		}
