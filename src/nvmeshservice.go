@@ -43,6 +43,7 @@ func checkNvmeshStatus() {
 		for _, line := range slcNvmeshService {
 			if strings.Contains(line, "core") {
 				fmt.Println("\tNVMesh Core Package Information:", line)
+				mReport["NVMesh Core Package: "] = line
 				status = statusFormat(getCommandReturnCode(strings.Fields("systemctl status nvmeshtarget")))
 				fmt.Println("\tNVMesh Target Service Status:", status)
 				mReport["NVMesh Target Service: "] = status
@@ -52,18 +53,21 @@ func checkNvmeshStatus() {
 			}
 			if strings.Contains(line, "management") {
 				fmt.Println("\tNVMesh Management Package Information:", line)
+				mReport["NVMesh Management Package: "] = line
 				status = statusFormat(getCommandReturnCode(strings.Fields("systemctl status nvmeshmgr")))
 				fmt.Println("\tNVMesh Management Service Status:", status)
 				mReport["NVMesh Management Service: "] = status
 			}
 			if strings.Contains(line, "target") {
 				fmt.Println("\tNVMesh Target Package Information:", line)
+				mReport["NVMesh Target Package: "] = line
 				status = statusFormat(getCommandReturnCode(strings.Fields("systemctl status nvmeshtarget")))
 				fmt.Println("\tNVMesh Target Service Status:", status)
 				mReport["NVMesh Target Service: "] = status
 			}
 			if strings.Contains(line, "client") {
 				fmt.Println("\tNVMesh Client Package Information:", line)
+				mReport["NVMesh Client Package: "] = line
 				status = statusFormat(getCommandReturnCode(strings.Fields("systemctl status nvmeshtarget")))
 				fmt.Println("\tNVMesh Client Service Status:", status)
 				mReport["NVMesh Client Service: "] = status
