@@ -77,7 +77,8 @@ func main() {
 			fmt.Println("\t", line)
 		}
 	} else {
-		fmt.Println(formatBoldWhite("\nMore NVMe drive details:"), "The nvme utilities are not installed or missing. Cannot scan the NVMe drives for more details without the nvme utilities.")
+		fmt.Println(formatBoldWhite("\nMore NVMe drive details:"),
+			"The nvme utilities are not installed or missing. Cannot scan the NVMe drives for more details without the nvme utilities.")
 	}
 
 	fmt.Println(formatBoldWhite("\nGeneric Block Device Information:"))
