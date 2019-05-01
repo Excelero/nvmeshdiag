@@ -1,17 +1,26 @@
 package main
 
 import (
+	"flag"
 	"fmt"
 	"strings"
 )
 
-var mReport = make(map[string]string)
+var (
+	mReport          = make(map[string]string)
+	plainOutput      = false
+	jsonOutputFormat = false
+)
 
-func init(){
+func init() {
 
 }
 
 func main() {
+
+	flag.BoolVar(&plainOutput, "p", false, "No color and no formatted console output in plain text.")
+	flag.BoolVar(&jsonOutputFormat, "j", false, "Print/output the result and information in JSON format.")
+	flag.Parse()
 
 	checkUser()
 
