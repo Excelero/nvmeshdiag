@@ -7,10 +7,28 @@ import (
 )
 
 var (
-	mReport          = make(map[string]string)
-	plainOutput      = false
-	jsonOutputFormat = false
+	mReport                                                        = make(map[string]string)
+	plainOutput                                                    = false
+	jsonOutputFormat                                               = false
+	nvmeshDiag, operatingSystem, nvmeshInfo, systemTuning, cpuInfo = NvmeshDiag{}, OperatingSystem{}, NVMeshInfo{}, SystemTuning{}, CPUInfo{}
 )
+
+type NvmeshDiag struct {
+	ServerName       string          `json:"ServerName"`
+	Platform         string          `json:"Platform"`
+	Manufacturer     string          `json:"Manufacturer"`
+	SerialNumber     string          `json:"SerialNumber"`
+	BaseboardType    string          `json:"BaseboardType"`
+	BaseboardVersion string          `json:"BaseboardVersion"`
+	BaseboardSerial  string          `json:"BaseboardSerial"`
+	InstalledMemory  string          `json:"InstalledMemory"`
+	OperatingSystem  OperatingSystem `json:"OperatingSystem"`
+	NVMeshInfo       NVMeshInfo      `json:"NVMeshInfo"`
+	SystemTuning     SystemTuning    `json:"SystemTuning"`
+	CPUInfo          CPUInfo         `json:"CPUInfo"`
+	OFEDInfo         string          `json:"OFEDInfo"`
+	FirewallInfo     string          `json:"FirewallInfo"`
+}
 
 func init() {
 
@@ -35,7 +53,9 @@ func main() {
 	if checkExecutableExists("free") {
 		strFree, _ := runCommand(strings.Fields("free --si -h"))
 		slcInstMem := strings.Split(strFree, "\n")
-		fmt.Println(formatBoldWhite("Installed Memory:"), strings.Fields(slcInstMem[1])[1])
+		installedMemory := strings.Fields(slcInstMem[1])[1]
+		fmt.Println(formatBoldWhite("Installed Memory:"), installedMemory)
+		nvmeshDiag.InstalledMemory = installedMemory
 	}
 	if checkExecutableExists("lsb_release") {
 		fmt.Println(formatBoldWhite("\nOperating System:"))
@@ -48,8 +68,10 @@ func main() {
 	checkSystemTuning()
 
 	if checkExecutableExists("ofed_info") {
-		ofedVersion, _ := runCommand(strings.Fields("ofed_info -n"))
-		println(formatBoldWhite("\nMellanox OFED:"), strings.TrimRight(ofedVersion, "\n\r"))
+		ofedInfo, _ := runCommand(strings.Fields("ofed_info -n"))
+		ofedVersion := strings.TrimRight(ofedInfo, "\n\r")
+		println(formatBoldWhite("\nMellanox OFED:"), ofedVersion)
+		nvmeshDiag.OFEDInfo = ofedVersion
 	} else {
 		fmt.Println(formatBoldWhite("\nMellanox OFED:"), "No OFED found.")
 	}
@@ -58,13 +80,20 @@ func main() {
 		sWarning := "Warning. Firewall is running! Make sure that all necessary TCP/IP ports as listed in the Excelero NVMesh documentation are configured and open."
 		fmt.Println(formatBoldWhite("\nFirewall:"), formatYellow(sWarning))
 		mReport["Firewall"] = sWarning
+		nvmeshDiag.FirewallInfo = sWarning
 	} else {
 		fmt.Println(formatBoldWhite("\nFirewall:"), "No firewall found.")
+
 	}
 
 	fmt.Println(formatBoldWhite("\nCPU Information:"))
 	strLsCpuOutput, _ := runCommand(strings.Fields("lscpu"))
 	parseLsCpu(strLsCpuOutput)
+
+	nvmeshDiag.OperatingSystem = operatingSystem
+	nvmeshDiag.NVMeshInfo = nvmeshInfo
+	nvmeshDiag.SystemTuning = systemTuning
+	nvmeshDiag.CPUInfo = cpuInfo
 
 	strLspciOutput, _ := runCommand(strings.Fields("lspci -vvv"))
 	parseLSPCI(strLspciOutput)
@@ -106,7 +135,7 @@ func main() {
 		fmt.Println("\t No troubles found.")
 	} else {
 		for k, v := range mReport {
-			fmt.Println("\t", k, ":", v)
+			fmt.Println("\t", k, v)
 		}
 	}
 }
