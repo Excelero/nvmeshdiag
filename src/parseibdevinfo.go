@@ -67,29 +67,34 @@ func parseIBDEVInfo() {
 					}
 
 				}
+				if rootUser() {
 
-				if checkExecutableExists("mlxconfig") && checkIfFileExists("/etc/opt/NVMesh/Excelero_mlxconfig.db") {
+					if checkExecutableExists("mlxconfig") && checkIfFileExists("/etc/opt/NVMesh/Excelero_mlxconfig.db") {
 
-					mlxconfigOut, _ := runCommand(strings.Fields("mlxconfig -d " + hcaId + " -b /etc/opt/NVMesh/Excelero_mlxconfig.db query"))
-					r = regexp.MustCompile(`ONE_QP_PER_RECOVERY\s*(True|False)`)
-					var match []string
-					match = r.FindStringSubmatch(mlxconfigOut)
+						mlxconfigOut, _ := runCommand(strings.Fields("mlxconfig -d " + hcaId + " -b /etc/opt/NVMesh/Excelero_mlxconfig.db query"))
+						r = regexp.MustCompile(`ONE_QP_PER_RECOVERY\s*(True|False)`)
+						var match []string
+						match = r.FindStringSubmatch(mlxconfigOut)
 
-					if len(match) > 0 {
-						rddaSupport, _ := strconv.ParseBool(match[1])
-						if rddaSupport {
-							fmt.Println("\t\t NVMesh RDDA readiness:", "This HCA is set and configured to support RDDA.")
+						if len(match) > 0 {
+							rddaSupport, _ := strconv.ParseBool(match[1])
+							if rddaSupport {
+								fmt.Println("\t\t NVMesh RDDA readiness:", "This HCA is set and configured to support RDDA.")
+							} else {
+								sWarning := "This HCA supports RDDA but the firmware is not yet configured for it. Enable ONE_QP_PER_RECOVERY if you need RDDA support."
+								fmt.Println("\t\t NVMesh RDDA readiness:", sWarning)
+								mReport[hcaId+" RDDA Readiness:"] = sWarning
+							}
 						} else {
-							sWarning := "This HCA supports RDDA but the firmware is not yet configured for it. Enable ONE_QP_PER_RECOVERY if you need RDDA support."
-							fmt.Println("\t\t NVMesh RDDA readiness:", sWarning)
-							mReport[hcaId + " RDDA Readiness:"] = sWarning
+							sWarning := "This HCA firmware doesn't support RDDA. Please check the firmware."
+							fmt.Println("\t\t NVMesh RDDA readiness:", formatYellow(sWarning))
+							mReport[hcaId+" RDDA Readiness: "] = sWarning
 						}
-					} else {
-						sWarning := "This HCA firmware doesn't support RDDA. Please check the firmware."
-						fmt.Println("\t\t NVMesh RDDA readiness:", formatYellow(sWarning))
-						mReport[hcaId + " RDDA Readiness: "] = sWarning
 					}
+				} else {
+					fmt.Println(formatYellow("\t\tNeed to run as root or sudo to query the adapter firmware setting."))
 				}
+
 			}
 			fmt.Print("\n")
 		}

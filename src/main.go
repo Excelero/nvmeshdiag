@@ -6,6 +6,7 @@ import (
 	"strings"
 )
 
+//Define global variables to be used throughout the project
 var (
 	mReport                                                        = make(map[string]string)
 	plainOutput                                                    = false
@@ -13,6 +14,8 @@ var (
 	nvmeshDiag, operatingSystem, nvmeshInfo, systemTuning, cpuInfo = NvmeshDiag{}, OperatingSystem{}, NVMeshInfo{}, SystemTuning{}, CPUInfo{}
 )
 
+//Define the struct which will be updated and populated by various routines.
+//The content of this struct eventually will be exported into the JSON formatted string.
 type NvmeshDiag struct {
 	ServerName       string          `json:"ServerName"`
 	Platform         string          `json:"Platform"`
@@ -35,21 +38,32 @@ func init() {
 }
 
 func main() {
-
+	//Parse the commandline arguments
+	//valid arguments are '-p' for plain and unformatted text output and '-j' to save the information locally in the users home folder in JSON format
 	flag.BoolVar(&plainOutput, "p", false, "No color and no formatted console output in plain text.")
 	flag.BoolVar(&jsonOutputFormat, "j", false, "Print/output the result and information in JSON format.")
 	flag.Parse()
 
+	//Check the user level. If other than root or in sudo mode, some nvmeshdiag will not be able to pull all the information.
+	//If all details are desired/required, run nvmesh diage using sudo or root
 	checkUser()
 
 	fmt.Println(formatBoldWhite("Starting System Scan. Please wait..."))
-	strLshwOutput, _ := runCommand(strings.Fields("lshw -c system -quiet"))
-	parseLshw(strLshwOutput)
 
+	//Running/executing the 'lshw' linus OS comamnd and passing the output on to parse the content
+	if checkExecutableExists("lshw") {
+		strLshwOutput, _ := runCommand(strings.Fields("lshw -c system -quiet"))
+		parseLshw(strLshwOutput)
+	}
+
+	//The execution of 'dmidecode' requires elevated user privileges to cature all Information
+	//If logged in as user root or runnning it in sudo, 'dmidecode' will be run and the output will be passed on and parsed.
 	if rootUser() {
 		strDmiDecodeOutput, _ := runCommand(strings.Fields("dmidecode --no-sysfs -t baseboard -q"))
 		parseDmiDecode(strDmiDecodeOutput)
 	}
+
+	//
 	if checkExecutableExists("free") {
 		strFree, _ := runCommand(strings.Fields("free --si -h"))
 		slcInstMem := strings.Split(strFree, "\n")
@@ -63,6 +77,7 @@ func main() {
 		strKernel, _ := runCommand(strings.Fields("uname -r"))
 		parseOSinfo(strOSinfo, strKernel)
 	}
+
 	checkNvmeshStatus()
 
 	checkSystemTuning()
@@ -98,16 +113,21 @@ func main() {
 	strLspciOutput, _ := runCommand(strings.Fields("lspci -vvv"))
 	parseLSPCI(strLspciOutput)
 
-	if checkExecutableExists("nvme") {
-		fmt.Println(formatBoldWhite("\nMore NVMe drive details:"))
-		strNvmeCliOutput, _ := runCommand(strings.Fields("nvme list"))
-		slcNvmeCliOutput := strings.Split(strNvmeCliOutput, "\n")
-		for _, line := range slcNvmeCliOutput {
-			fmt.Println("\t", line)
+	if rootUser() {
+
+		if checkExecutableExists("nvme") {
+			fmt.Println(formatBoldWhite("\nMore NVMe drive details:"))
+			strNvmeCliOutput, _ := runCommand(strings.Fields("nvme list"))
+			slcNvmeCliOutput := strings.Split(strNvmeCliOutput, "\n")
+			for _, line := range slcNvmeCliOutput {
+				fmt.Println("\t", line)
+			}
+		} else {
+			fmt.Println(formatBoldWhite("\nMore NVMe drive details:"),
+				"The nvme utilities are not installed or missing. Cannot scan the NVMe drives for more details without the nvme utilities.")
 		}
 	} else {
-		fmt.Println(formatBoldWhite("\nMore NVMe drive details:"),
-			"The nvme utilities are not installed or missing. Cannot scan the NVMe drives for more details without the nvme utilities.")
+		fmt.Println(formatYellow("Need root user or sudo to get lower level NVme device information"))
 	}
 
 	fmt.Println(formatBoldWhite("\nGeneric Block Device Information:"))
