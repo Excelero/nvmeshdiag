@@ -37,12 +37,17 @@ func main() {
 		slcInstMem := strings.Split(strFree, "\n")
 		fmt.Println(formatBoldWhite("Installed Memory:"), strings.Fields(slcInstMem[1])[1])
 	}
+	fmt.Println(formatBoldWhite("\nOperating System:"))
+	var strOSinfo string
 	if checkExecutableExists("lsb_release") {
-		fmt.Println(formatBoldWhite("\nOperating System:"))
-		strOSinfo, _ := runCommand(strings.Fields("lsb_release -a"))
-		strKernel, _ := runCommand(strings.Fields("uname -r"))
-		parseOSinfo(strOSinfo, strKernel)
+		strOSinfo, _ = runCommand(strings.Fields("lsb_release -a"))
+	} else if checkExecutableExists("hostnamectl") {
+		strOSinfo, _ = runCommand(strings.Fields("hostnamectl"))
+	} else {
+		strOSinfo, _ = runCommand(strings.Fields("cat /etc/os-release"))
 	}
+	strKernel, _ := runCommand(strings.Fields("uname -r"))
+	parseOSinfo(strOSinfo, strKernel)
 	checkNvmeshStatus()
 
 	checkSystemTuning()
