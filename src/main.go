@@ -54,7 +54,7 @@ func main() {
 
 	if checkExecutableExists("ofed_info") {
 		ofedVersion, _ := runCommand(strings.Fields("ofed_info -n"))
-		println(formatBoldWhite("\nMellanox OFED:"), strings.TrimRight(ofedVersion, "\n\r"))
+		fmt.Println(formatBoldWhite("\nMellanox OFED:"), strings.TrimRight(ofedVersion, "\n\r"))
 	} else {
 		fmt.Println(formatBoldWhite("\nMellanox OFED:"), "No OFED found.")
 	}
