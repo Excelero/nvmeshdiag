@@ -86,6 +86,12 @@ func main() {
 			"The nvme utilities are not installed or missing. Cannot scan the NVMe drives for more details without the nvme utilities.")
 	}
 
+	if !parseArpValues() {
+		sWarning := formatYellow("Warning! Some arp values are not configured correctly, please review.")
+		fmt.Println(formatYellow("\t") + sWarning)
+		mReport["ARP Values"] = sWarning
+	}
+
 	fmt.Println(formatBoldWhite("\nGeneric Block Device Information:"))
 	strLsBlkOutput, _ := runCommand(strings.Fields("lsblk -l -d -f"))
 	slcLsBlkOutput := strings.Split(strLsBlkOutput, "\n")
