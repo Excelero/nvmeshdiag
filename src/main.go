@@ -60,9 +60,20 @@ func main() {
 	}
 
 	if !checkFirewall() == false {
-		sWarning := "Warning. Firewall is running! Make sure that all necessary TCP/IP ports as listed in the Excelero NVMesh documentation are configured and open."
-		fmt.Println(formatBoldWhite("\nFirewall:"), formatYellow(sWarning))
-		mReport["Firewall"] = sWarning
+		if !checkNVMeshManangementPorts() {
+			sWarning := formatYellow("Warning! Firewall is running! Make sure that all necessary TCP/IP ports as listed in the Excelero NVMesh documentation are configured and open.")
+			fmt.Println(formatBoldWhite("\nFirewall:"), sWarning)
+			mReport["Firewall"] = sWarning
+		} else {
+			striptablesOutput, _ := runCommand(strings.Fields("iptables -nL"))
+			if !parseIPTables(striptablesOutput) {
+				sWarning := formatYellow("Warning! Firewall is running! One or more NVMesh Manangement Ports are not configured correctly, please review.")
+				fmt.Println(formatYellow("\t") + sWarning)
+				mReport["Firewall"] = sWarning
+			} else {
+				fmt.Println(formatGreen("\tAll NVMesh Manangement Ports are configured correctly"))
+			}
+		}
 	} else {
 		fmt.Println(formatBoldWhite("\nFirewall:"), "No firewall found.")
 	}
