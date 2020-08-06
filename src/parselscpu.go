@@ -43,8 +43,8 @@ func parseLsCpu (s string){
 			cpuMax, _ = strconv.Atoi(strCPUMaxSpeed)
 
 			if cpuMax - cpuSpeed > 100{
-				sWarning := "Warning! The CPU runs on speeds below its capabilities. Please verify the settings and configuration as this may impact the NVMesh performance and user expirience."
-				fmt.Println(formatYellow("\t" + sWarning))
+				sWarning := formatYellow("Warning! The CPU runs on speeds below its capabilities. Please verify the settings and configuration as this may impact the NVMesh performance and user expirience.")
+				fmt.Println(formatYellow("\t"), sWarning)
 				mReport["CPU"] = sWarning
 			}
 		}
