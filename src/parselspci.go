@@ -60,8 +60,8 @@ func parsePCIdeviceDetail(d []string) {
 			strLinkSta = r.FindStringSubmatch(detail)[1] + r.FindStringSubmatch(detail)[2]
 
 			if strLinkCap != strLinkSta {
-				sWarning := "WARNING! Capabilities <-> Status Mismatch! Please check this device!"
-				fmt.Println(formatYellow("\t\t " + sWarning))
+				sWarning := formatYellow("WARNING! Capabilities <-> Status Mismatch! Please check this device!")
+				fmt.Println(formatYellow("\t\t ") + sWarning)
 				mReport["PCI Device " + d[0][:8]] = string(d[0][8:]) + " " + sWarning
 			}
 		}

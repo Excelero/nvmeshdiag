@@ -30,8 +30,8 @@ func parseIBDEVInfo() {
 				strGUID := r.FindStringSubmatch(hca)[0]
 				fmt.Println("\t\tGUID:", strGUID)
 				if strings.Split(strGUID, ":")[0] == "0000" {
-					sWarning := "Warning! GUID seems invalid. Please double-check and verify."
-					fmt.Println(formatYellow("\t\t" + sWarning))
+					sWarning := formatYellow("Warning! GUID seems invalid. Please double-check and verify.")
+					fmt.Println(formatYellow("\t\t") + sWarning)
 					mReport[hcaId] = sWarning
 				}
 
@@ -70,25 +70,31 @@ func parseIBDEVInfo() {
 
 				if checkExecutableExists("mlxconfig") && checkIfFileExists("/etc/opt/NVMesh/Excelero_mlxconfig.db") {
 
-					mlxconfigOut, _ := runCommand(strings.Fields("mlxconfig -d " + hcaId + " -b /etc/opt/NVMesh/Excelero_mlxconfig.db query"))
-					r = regexp.MustCompile(`ONE_QP_PER_RECOVERY\s*(True|False)`)
+					mlxconfigOut, _ := runCommand(strings.Fields("mlxconfig -d " + hcaId + " -b /etc/opt/NVMesh/Excelero_mlxconfig.db -e query"))
+					r = regexp.MustCompile(`ONE_QP_PER_RECOVERY\s*(True\(1\)|False\(0\)\s*)*`)
 					var match []string
+					var sWarning string
 					match = r.FindStringSubmatch(mlxconfigOut)
-
 					if len(match) > 0 {
+						r = regexp.MustCompile(`(True|False)`)
+						match = r.FindAllString(match[0], -1)
 						rddaSupport, _ := strconv.ParseBool(match[1])
 						if rddaSupport {
 							fmt.Println("\t\t NVMesh RDDA readiness:", "This HCA is set and configured to support RDDA.")
+							continue
 						} else {
-							sWarning := "This HCA supports RDDA but the firmware is not yet configured for it. Enable ONE_QP_PER_RECOVERY if you need RDDA support."
-							fmt.Println("\t\t NVMesh RDDA readiness:", sWarning)
-							mReport[hcaId + " RDDA Readiness:"] = sWarning
+							needsReboot,_ := strconv.ParseBool(match[2])
+							if needsReboot {
+								sWarning = formatYellow("This HCA supports RDDA and the firmware is configured for it. The system requires a reboot to Enable ONE_QP_PER_RECOVERY for RDDA support.")
+							} else {
+								sWarning = formatYellow("This HCA supports RDDA but the firmware is not yet configured for it. Enable ONE_QP_PER_RECOVERY if you need RDDA support, then reboot the node.")
+							}
 						}
 					} else {
-						sWarning := "This HCA firmware doesn't support RDDA. Please check the firmware."
-						fmt.Println("\t\t NVMesh RDDA readiness:", formatYellow(sWarning))
-						mReport[hcaId + " RDDA Readiness: "] = sWarning
+						sWarning = formatYellow("This HCA firmware doesn't support RDDA. Please check the firmware.")
 					}
+					fmt.Println("\t\t NVMesh RDDA readiness:", sWarning)
+					mReport[hcaId + " RDDA Readiness: "] = sWarning
 				}
 			}
 			fmt.Print("\n")

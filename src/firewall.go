@@ -28,3 +28,15 @@ func checkFirewall() bool {
 
 	return firewallRunning
 }
+
+// Check management port configuration only if firewalld is running
+func checkNVMeshManangementPorts() bool {
+
+	var NVMeshPortsConfigured bool
+
+	if checkFirewallType("firewalld") == 0{
+			NVMeshPortsConfigured = true
+	}
+
+	return NVMeshPortsConfigured
+}
